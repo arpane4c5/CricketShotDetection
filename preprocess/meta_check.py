@@ -10,7 +10,7 @@ import cv2
 import os
 
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-DATASET = "/home/arpan/DATA_Drive/Cricket/dataset/"
+DATASET = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps/"
 notOpened, opened = 0, 0
 
 def write_meta_data(srcVid):

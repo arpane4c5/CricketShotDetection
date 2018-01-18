@@ -16,7 +16,7 @@ import json
 import random
 
 # Server params
-DATASET = "/home/arpan/DATA_Drive/Cricket/dataset"
+DATASET = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"
 LABELS = ""
 
 notOpened, opened = 0, 0
@@ -24,9 +24,29 @@ notOpened, opened = 0, 0
 #DATASET = "/home/hadoop/VisionWorkspace/VideoData/ICC WT20"
 #LABELS = "/home/hadoop/VisionWorkspace/ActivityProjPy/gt_ICC_WT20"
 
+# function to create meta_info file if it doesn't exist.
+def create_meta_info(destFile):
+    if not os.path.exists(destFile):
+        meta_info = read_dataset_meta_info()
+        # get total duration of the videos and the total no. of frames        
+        tot_frames, tot_time = get_total_time(meta_info)
+        print "Total Frames in dataset : "+str(tot_frames)
+        print "Total duration of videos (in sec) : "+str(tot_time)
+        # randomly assign the dataset partition as %age of total time
+        calculate_partitions(meta_info, tot_time)
+        # write the file to disk
+        with open(destFile, "w") as fp:
+            json.dump(meta_info, fp)
+        print "Partitioning done and saved to json file !!"
+    else:   # if file exists then read the meta_info from file
+        print "File already exists! Reading information from file..."
+        with open(destFile, "r") as fp:
+            meta_info = json.load(fp)
+    print [meta_info[k] for k in meta_info.keys()[:5]]
+
 
 # function to read the files and create the json meta info files.
-def create_meta_files():
+def read_dataset_meta_info():
     d = {}
     # read the files and calculate the meta information
     subfolders = os.listdir(DATASET)
@@ -38,7 +58,8 @@ def create_meta_files():
     print "Files Opened: {}, Not Opened: {}".format(opened, notOpened)
     return d
 
-
+# read information from a single video and return as a dictionary entry
+# Aborts in between if any of the videos is not readable by VideoCapture
 def read_meta_info(srcVid):
     global notOpened, opened
     cap = cv2.VideoCapture(srcVid)
@@ -97,31 +118,17 @@ def calculate_partitions(meta_info_dict, tot_time):
     # Assign remaining to training set
     for k in keys:
         meta_info_dict[k]["partition"] = "training"
-    
-    # write the file to disk
-    with open("dataset_partitions_info.json", "w") as fp:
-        json.dump(meta_info_dict, fp)
-    
+        
     print "Total Time of all videos : {} \n \
     Time for validation set videos (20%) : {} \n \
     Time for test set videos (20%) : {} ".format(tot_time, val_time, test_time)
-    print "Partitioning done and saved to json file !!"
-
+    
 
 if __name__=="__main__":
     
-    #meta_info = create_meta_files()
+    metaFilePath = "../supporting_files"
+    metaFileName = "dataset_25_fps_meta_info.json"
     
-    #with open("dataset_meta_info.json", "w") as fp:
-    #    json.dump(meta_info, fp)
-    
-    with open("dataset_meta_info.json", "r") as fp:
-        meta_info = json.load(fp)
-    
-    tot_frames, tot_time = get_total_time(meta_info)
-    
-    # randomly assign the details
-    calculate_partitions(meta_info, tot_time)
-    
+    create_meta_info(os.path.join(metaFilePath, metaFileName))
     
     
