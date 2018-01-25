@@ -47,8 +47,8 @@ def extract_hist_diff_vids(srcFolderPath, destFolderPath, color=('g'), stop='all
                         outfile = file(os.path.join(sub_dest_path, vid.rsplit('.', 1)[0])+".bin", "wb")
                         np.save(outfile, vdiffs)
                         outfile.close()
-                        print "Done : "+sf+"/"+vid
                         traversed += 1
+                        print "Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid
                         
                     # to stop after successful traversal of 2 videos, if stop != 'all'
                     if stop != 'all' and traversed == stop:
@@ -173,8 +173,12 @@ def getHistogramOfVideo(srcVideoPath, color=('b')):
 
 
 if __name__=='__main__':
-    srcPath = '/opt/datasets/KTH'
+    # The srcPath should have subfolders that contain the training, val, test videos.
+    # The function iterates over the subfolders and videos inside that.
+    # The destPath will be created and inside that directory structure similar 
+    # to src path will be created, with binary files containing the features.
+    srcPath = '/home/arpan/DATA_Drive/Cricket/dataset_25_fps'
     #srcPath = '/home/hadoop/VisionWorkspace/KTH_OpticalFlow/dataset'
-    destPath = "/home/arpan/DATA_Drive/Cricket/test_extract_hist"
-    #destPath = "/home/hadoop/VisionWorkspace/Cricket/scripts/features/test_feats"
-    extract_hist_diff_vids(srcPath, destPath, stop=3)
+    destPath = "/home/arpan/VisionWorkspace/shot_detection/extracted_features/hist_diff_grayscale_ds_25_fps"
+    #destPath = "/home/hadoop/VisionWorkspace/Cricket/scripts/features/test_hist_diffs"
+    extract_hist_diff_vids(srcPath, destPath, stop='all')
