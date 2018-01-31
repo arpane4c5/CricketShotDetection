@@ -6,16 +6,22 @@ Created on Sun May 21 01:59:42 2017
 Description: Script to train simple ML models on camera frames. We use HOG features 
 extracted from positive and negative frames. The models are saved on disk and used 
 to extract cricket shots by detecting the starting frames as positive examples.
+
+Refer: opencv/samples/python/digits.py  for the SVM usage details.
 """
 
 import cv2
 import numpy as np
+import os
 
-CAM1_FRAMES_DATA = "/home/hadoop/VisionWorkspace/ActivityProjPy/ExtractFrames/cam1_frames"
-CAM2_FRAMES_DATA = "/home/hadoop/VisionWorkspace/ActivityProjPy/ExtractFrames/cam2_frames"
+# Server Param
+#PROJECT_PREFIX = "/home/arpan/VisionWorkspace/shot_detection"
+PROJECT_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/scripts"
+CAM1_FRAMES_DATA = "camera_models/cam1_frames"
+CAM2_FRAMES_DATA = "camera_models/cam2_frames"
 CLASS_N = 2
 # refer the opencv sample program on SVM training for details of params
-svm_params = dict(kernel_type=cv2.SVM_LINEAR, svm_type=cv2.SVM_C_SVC, \
+svm_params = dict(kernel_type=cv2.ml.SVM_LINEAR, svm_type=cv2.ml.SVM_C_SVC, \
             C=2.67, gamma = 5.383)
 
 class StatModel(object):
@@ -28,15 +34,26 @@ class StatModel(object):
 # https://stackoverflow.com/questions/8687885/python-opencv-svm-implementation
 class SVM(StatModel):
     '''Wrapper for Support Vector Machine'''
-    def __init__(self):
-        self.model = cv2.SVM()
-        
-    def train(self, samples, responses, params):
-        # setting algo params
-        self.model.train(samples, responses, params=params)
-        
+    def __init__(self, C = 1, gamma = 0.5):
+        self.model = cv2.ml.SVM_create()
+        self.model.setGamma(gamma)
+        self.model.setC(C)
+        #self.model.setKernel(cv2.ml.SVM_RBF)
+        self.model.setKernel(cv2.ml.SVM_LINEAR)
+        self.model.setType(cv2.ml.SVM_C_SVC)
+
+    def train(self, samples, responses):
+        self.model.train(samples, cv2.ml.ROW_SAMPLE, responses)
+
     def predict(self, samples):
-        return  np.float32([self.model.predict(s) for s in samples] )
+        return self.model.predict(samples)[1].ravel()
+# For OpenCV 2.4
+#    def train(self, samples, responses, params):
+#        # setting algo params
+#        self.model.train(samples, responses, params=params)
+#        
+#    def predict(self, samples):
+#        return  np.float32([self.model.predict(s) for s in samples] )
 
 
 # read folder images paths and interpret labels from their names
@@ -45,7 +62,6 @@ def load_data(srcDataPath):
     img_list = list()
     labels_list = list()
     # read the images from the folder 
-    import os
     files_list = sorted(os.listdir(srcDataPath))
     # save the images and labels in lists
     for path in files_list:
@@ -63,7 +79,7 @@ def load_data(srcDataPath):
 def preprocess_hog(images_list):
     # assumed that images have shape (h,w) = (360,640)
     samples = []
-    hog = cv2.HOGDescriptor("hog.xml")
+    hog = cv2.HOGDescriptor(os.path.join(PROJECT_PREFIX, "supporting_files/hog.xml"))
     # winStride, padding and locations are not needed
     for img in images_list:        
         #image = cv2.imread(imgPath, 0)      # taking only grascale image
@@ -96,7 +112,9 @@ def preprocess_hog(images_list):
 
 # Evaluate the trained model
 def evaluate_model(model, samples, labels):
-    resp = model.predict(samples)
+    resp = np.int32(model.predict(samples))
+    print "Labels and corresponding predictions: "
+    print zip(labels, resp)
     err = (labels!=resp).mean()
     print('error: %.2f %%' % (err*100))
 
@@ -165,8 +183,8 @@ def train_model(framesPath, shuffleSeed=123):
         
     
     # Train a model    
-    model = SVM()   # C = 2.67, gamma = 5.383
-    model.train(samples_train, labels_train, svm_params)    
+    model = SVM(C=2.67, gamma=5.383)   # C = 2.67, gamma = 5.383
+    model.train(samples_train, labels_train)    
     
     # Evaluate the algorithm
     print "Evaluation on the test data:"
@@ -178,13 +196,13 @@ def train_model(framesPath, shuffleSeed=123):
 if __name__=='__main__':
     
     # Train the model on 
-    model1 = train_model(CAM1_FRAMES_DATA, 321)
+    model1 = train_model(os.path.join(PROJECT_PREFIX, CAM1_FRAMES_DATA), 321)
     # save model to disk
-    model1.save("cam1_svm_model.dat")
+    model1.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
     
     # Save the model to disk
-    model2 = train_model(CAM2_FRAMES_DATA, 456)
-    model2.save("cam2_svm_model.dat")
+    model2 = train_model(os.path.join(PROJECT_PREFIX, CAM2_FRAMES_DATA), 456)
+    model2.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam2_svm_model.dat"))
     
     # Load an existing model
     # model = SVM

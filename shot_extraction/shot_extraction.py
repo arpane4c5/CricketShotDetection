@@ -16,11 +16,12 @@ import svm_model as svm
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset/"
+DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset/"  # dataset_25_fps
 SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
 CAM1_MODEL = "cam1_svm.dat"
 CAM2_MODEL = "cam2_svm.dat"
-DATASET_INFO = "dataset_partitions_info.json"
+DATASET_INFO = "dataset_partitions_info.json"   # dataset_25_fps_meta_info.json
+CUTS_INFO = "dataset_cut_predictions.json"
 
 
 class VideoShot:
@@ -49,35 +50,49 @@ class VideoShot:
     # define more functions here for VideoShot class
     
 
-# Iterate over the videos kept in a folder and extract relevant shots from each
-# Input: dictionary to the dataset meta info
-def extract_shots_from_all_videos(meta_info):
-    # get the list of videos
-    srcVideosList = os.listdir(srcVideoFolder)
-    for video in srcVideosList:
+# Iterate over the videos using keys of the meta_info and extract shots for each
+# Inputs: meta_info : dictionary for the dataset meta info
+# cuts_dict : dictionary for the cut position prediction over entire dataset 
+# Output: dictionary with list of tuples representing shots.
+def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
+    # get the list of all videos in the dataset
+    srcVideosList = meta_info.keys()
+    for idx, vid_key in enumerate(srcVideosList):
+        #######################################################################
+        # Method 1: Use boundary detection and then starting frame recognition.
         # call a boundary detector
-        cuts_list = get_cuts_list_for_video(video)
+        cuts_list = cuts_dict[vid_key]
         if 1 not in cuts_list:        
             cuts_list.insert(0,1)       # prepend frame 1 to list
         
-        extract_shot_from_video(srcVideoFolder, video, cuts_list)
+        vid_shots = get_shots_from_video(DATASET_PREFIX, vid_key, cuts_list, meta_info[vid_key])
+        shots_dict[vid_key] = vid_shots     # save in dictionary
+        print "Shots of video "+str(idx)+" : "+vid_key
+        print vid_shots
 
+        if idx == 2:    # stop after 3 videos, Comment this to traverse entire ds
+            break
+        #######################################################################
+        # Method 2: Use Shot Proposals, like Action Proposals method
+        
 
 # Frame Based Identification (FBI) using HOG descriptor
 # Extract the shot from single video
 # Inputs: srcVideoFolder and srcVideo define the complete path of video
 #       cuts_list --> list of frame nos where boundary is predicted (postFNum)
-def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
+#       vinfo --> video meta info (dict with partition, dimension and nFrames)
+# Output: Returns a list of tuples (st_fr, end_fr) i.e., starting and ending frame
+# nos. of the shots.
+def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None):
     cap = cv2.VideoCapture(os.path.join(srcVideoFolder,srcVideo))
-    # if the VideoCapture object is not opened then exit
+    # if the VideoCapture object is not opened then return None
     if not cap.isOpened():
-        import sys
         print "Error in opening video File !!"
-        sys.exit(0)
-
+        return None
+    # following attributes can be read from vinfo also.
     dimensions = (int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    total_no_of_frames = (int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)))
+    nFrames = (int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)))
     start_frame = -1
     end_frame = -1
     cam1_flag = False   # True is for positive class of frame
@@ -86,12 +101,16 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
     
     print "Video :: "+srcVideo
     print "Dim :: "+str(dimensions)+"  #### FPS :: "+str(fps)
-    # see if it matches 360x640 and ~25 FPS
-    no_of_cuts = len(cuts_list)
+    # see if it matches 360x640 and ~25 FPS, in main dataset it is as
+    # 
+    ncuts = len(vcuts_list)
+    ######################
     
-    for i in range(no_of_cuts):
-        cut_pos = cuts_list[i]
-        cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, cut_pos)
+    # if cuts_len is empty then ##############
+    
+    ######################
+    for i, cut_pos in enumerate(vcuts_list):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, cut_pos)
         ret, frame = cap.read()
         
         if ret:
@@ -102,13 +121,13 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
                     start_frame = end_frame = -1
                     cam2_flag = False
                     
-                cam1_flag = predict_frame_class_cam1(frame)
+                cam1_flag = predict_frame_class(frame, cam=1)
                 if cam1_flag:
                     start_frame = cut_pos
                     continue
             else:
                 cam1_flag = False
-                cam2_flag = predict_frame_class_cam2(frame)
+                cam2_flag = predict_frame_class(frame, cam=2)
                 if cam2_flag:
                     # check for last cut value
                     continue
@@ -117,9 +136,6 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
                     # call write_shot
                     start_frame = end_frame = -1
                     
-                    
-                
-#    
         
         #writeShotToFile(srcVideo, start_index, stop_index, outFileName)
 #    ret, prev_frame = cap.read()
@@ -127,27 +143,16 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
 #    # convert frame to GRAYSCALE
 #    prev_frame = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
 #    
-#    # If frame is not of a const dimension 360x640 then scale
-#    # frame = cv2.resize(frame, (640, 360), intepolation = cv2.INTER_CUBIC)
-#    # check FPS also, it should be ~25
 #    while(cap.isOpened()):
 #        ret, frame = cap.read()
 #
 #        if ret:
-#            # Do the necessary processing here
-#            #frame = imutils.resize(frame, width=600)
 #            
 #            #fgmask = fgbg.apply(frame)
 #            #hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 ################################################################################
 #            # decide whether frame is part of shot or not
 #            curr_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)     
-#
-################################################################################ 
-#            
-################################################################################ 
-#             
-#            frame_res = is_positive_shot_frame(curr_frame)
 #            
 #            # Append value to a list and come up with a decision algo 
 #            # for categorizing shot into a cricket shot
@@ -159,9 +164,6 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
 #            #cv2.imshow('Cropped', frame[50:310,100:540])
 #            #cv2.imshow("background", mask)
 #            waitTillEscPressed()
-#            #if cv2.waitKey(10)==27:
-#            #    print("Esc Pressed")
-#            #    break
 #            frameCounter = frameCounter + 1
 #            prev_frame = curr_frame
 #        else:
@@ -174,10 +176,8 @@ def extract_shot_from_video(srcVideoFolder, srcVideo, cuts_list):
 
 # Decide whether a video frame is a part of the positive example video shot
 # Take features from the frame and predict using a trained model
-def is_positive_shot_frame(frame):
+def predict_frame_class(frame, cam=1):
     #import svm_model
-
-    
     # Extract features of the frame (HOG etc) and
     # Predict using the trained SVM model 
     r = np.random.randint(2)    # coin toss, bernoulli RV
@@ -187,14 +187,13 @@ def is_positive_shot_frame(frame):
         return False
 
 
-# function in shot_detection.py 
-# def write_shot_to_file(videoShotObject, destPath):
-    # write the file to the 
-    # No need to hold all the frames of shot in memory (as part of object)
-    # shot object can only hold the meta information
-#    return    
-
 ###############################################################################
+
+# method to predict a sequence of frames and check for a sequence of True values
+# eg. T T T T F F T F F F F F ....
+def method2():
+    return 
+
 ###############################################################################
 ###############################################################################
 
@@ -222,10 +221,16 @@ if __name__=='__main__':
     with open(os.path.join(SUPPORTING_FILES_PATH, DATASET_INFO), "r") as fp:
         meta_info = json.load(fp)
     
+    # read the cut predictions json file.
+    with open(os.path.join(SUPPORTING_FILES_PATH, CUTS_INFO), 'r') as fp:
+        cuts_dict = json.load(fp)
+    
+    
+    shots_dict = {}
+    
     # iterate over all videos to extract HOG features 
     # OR extract and mark one video at a time
-    
-    extract_shots_from_all_videos(meta_info)    
+    extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict)    
     #extract_shot_from_video(srcVideoFolder, srcVideosList[0])
     
     # Iterate over all the videos of dataset and 
