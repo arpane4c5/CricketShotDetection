@@ -38,16 +38,13 @@ ________________________________________________________________________________
 1. Collection of dataset (folder: dataset_creation)
 Source: Youtube, Hotstar, etc.
 
-* download_videos.py : Script to take the youtube video ids from a text file and create a bash script 
-which downloads the videos using youtube-dl library. 
+* download_videos.py : Script to take the youtube video ids from a text file and create a bash script which downloads the videos using youtube-dl library. 
 
 SBD Labeling (folder: labels):
 
 * Created scripts SBD_create_labels.py and create_shot_labels.py
 
-* SBD_create_labels.py: for semi-automating the labeling task. It iterates over a set of videos (kept
-in subfolders in a path). For every video, a corresponding JSON file is created in a similar directory
-structure. The json has following structure only for CUT boundaries.
+* SBD_create_labels.py: for semi-automating the labeling task. It iterates over a set of videos (kept in subfolders in a path). For every video, a corresponding JSON file is created in a similar directory structure. The json has following structure only for CUT boundaries.
 {"video_subfolder_file_path": [(preFNum, postFNum), (preFNum, postFNum), ....]}
 --> User can use the following keys for traversing
 ESC: Move Forward without positive labeling (puts a -ve label)
@@ -59,19 +56,12 @@ b  : move back and delete last +ve/-ve label
 
 2. Preprocessing (folder: preprocess)
 
-* convert_ffmpeg_uniform.py : creates a bash script which uses ffmpeg to convert the raw videos into
-25FPS and resolution (360, 640) videos. 
+* convert_ffmpeg_uniform.py : creates a bash script which uses ffmpeg to convert the raw videos into 25FPS and resolution (360, 640) videos. 
 
-* meta_check.py : checks the metadata of the videos and whether the frames in them are being read by
-VideoCapture object or not. 
+* meta_check.py : checks the metadata of the videos and whether the frames in them are being read by VideoCapture object or not. 
 
-* create_partitions.py : takes the dataset path and creates a meta_info.json file that contains the 
-meta informations of the dataset videos. It is in the form of a dictionary, as explained in the 
-previous section. The calculate_partitions function divides the entire dataset into three parts, by
-assigning videos to their groups i.e., training, testing and validation, in the ratio of 50%, 25%, 25%.
-The videos are shuffled and the division is done based on total duration of the videos.
-The dataset_25_fps_meta_info.json file is created in the supporting_files folder containing the above
-information.
+* create_partitions.py : takes the dataset path and creates a meta_info.json file that contains the meta informations of the dataset videos. It is in the form of a dictionary, as explained in the previous section. The calculate_partitions function divides the entire dataset into three parts, by assigning videos to their groups i.e., training, testing and validation, in the ratio of 50%, 25%, 25%. The videos are shuffled and the division is done based on total duration of the videos.
+The dataset_25_fps_meta_info.json file is created in the supporting_files folder containing the above information.
 
 
 3. Features (folder: features)
@@ -79,6 +69,21 @@ information.
 * extract_hist_diffs.py : 
 
 * extract_sqchi_diffs.py :
+
+* extract_hist_diffs_par.py : Parallelized version of extract_hist_diffs.py over the multiple cores of CPU
+
+* extract_sqchi_diffs_par.py : Parallelized version of extract_hist_diffs.py over the multiple cores of CPU
+
+
+4. Labeling (semi-automatically) the frames of the video (folder : labels)
+
+
+4. Boundary Detection : (folder : boundary_detection)
+
+
+
+5. Shot Extraction : (folder : shot_extraction)
+Using the predicted shots boundaries, first frame camera models pre-trained on HOG features, and 
 
 _____________________________________________________________________________________________________
 
@@ -92,13 +97,9 @@ ________________________________________________________________________________
 1. Parallelize the extract_hist_diff.py and extract_sqchi_diffs.py over (a) GPU (using cv::cuda)
 (b) Over multiple processors (using multiprocess)
 
-2. Verification scripts to see that features extracted on local machine and server are the same.
-(might differ in .h264 encoding or a different codec, Does it depend on the codec?). May consider
-a type of Randomized algo (improved time complexity)
+2. Verification scripts to see that features extracted on local machine and server are the same. (might differ in .h264 encoding or a different codec, Does it depend on the codec?). May consider a type of Randomized algo (improved time complexity)
 
-3. SVM training of cam1 and cam2 frames on HOG features. Optimize the features, SVM params, and 
-consider different models like Random Forests etc. (shot_extraction/svm_model.py). Check for 
-misclassified examples.
+3. SVM training of cam1 and cam2 frames on HOG features. Optimize the features, SVM params, and consider different models like Random Forests etc. (shot_extraction/svm_model.py). Check for misclassified examples.
 
 4. 
 
@@ -111,10 +112,7 @@ ________________________________________________________________________________
 1. Tracking with median/Kalman filtering, and YOLO Tracking.
 
 2. Fourier and Wavelet Transform based filtering using 3D filters.
-(Description: FT the motion features, such that the frequency spectrum depicts
-signal of certain type. The similar motion types will have peaks at specific freq 
-points. Average out over all of the training set videos. -> should reduce the (white) noise
-to zero and we will get the freq. peaks for different actions. Apply Haar filters or Gabor)
+(Description: FT the motion features, such that the frequency spectrum depicts signal of certain type. The similar motion types will have peaks at specific freq points. Average out over all of the training set videos. -> should reduce the (white) noise to zero and we will get the freq. peaks for different actions. Apply Haar filters or Gabor)
 
 3. BoVW model
 
@@ -142,3 +140,18 @@ Partially completed:
 2. KNN classification over hist_diff values for SBD
 
 3. 
+
+
+_____________________________________________________________________________________________________
+
+Results and sub-results:
+
+Parallelizing feature extraction 
+
+1. Histogram differences for BGR channels.(Batchsize = 50, nJobs = 10)
+Full Dataset : 23832.08 secs = 6.62 hrs
+
+2. Chi Squared differences for BGR channels. (Batchsize = 50, nJobs = 10)
+Full Dataset : 23979.83 secs = 6.66 hrs
+
+
