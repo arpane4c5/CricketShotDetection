@@ -22,7 +22,7 @@ CAM1_MODEL = "cam1_svm_model.dat"
 CAM2_MODEL = "cam2_svm_model.dat"
 HOG_FILE = "hog.xml"
 DATASET_INFO = "dataset_25_fps_meta_info.json"
-CUTS_INFO = "dataset_25_fps_cut_predictions.json"
+CUTS_INFO = "ds25fps_cuts_hist_diffs_gray_lsvm.json"
 
 
 class VideoShot:

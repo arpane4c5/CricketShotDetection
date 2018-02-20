@@ -71,7 +71,7 @@ def getShotLabelsForVideo(srcVideo):
         return None
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    while cap.isOpened():
+    while cap.isOpened() and i<=(length+2):
         cap.set(cv2.CAP_PROP_POS_FRAMES, i)
         ret, frame = cap.read()
         if ret:
@@ -134,27 +134,26 @@ def getListOfShots(shotLabels):
 def waitTillEscPressed():
     while(True):
         # For moving forward
-        if cv2.waitKey(10)==27:
+        if cv2.waitKey(0)==27:
             print("Esc Pressed. Move Forward.")
             return 1
         # For moving back
-        elif cv2.waitKey(10)==98:
+        elif cv2.waitKey(0)==98:
             print("'b' pressed. Move Back.")
             return 0
         # start of shot
-        elif cv2.waitKey(10)==115:
+        elif cv2.waitKey(0)==115:
             print("'s' pressed. Start of shot.")
             return 2
         # end of shot
-        elif cv2.waitKey(10)==102:
+        elif cv2.waitKey(0)==102:
             print("'f' pressed. End of shot.")
             return 3
 
 
 if __name__=='__main__':
-    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
-    
-    destFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/labels"
+    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps_test_set_1"
+    destFolder = "/home/hadoop/VisionWorkspace/Cricket/group1/create_shot"
     create_labels(srcVideoFolder, destFolder)
     
     

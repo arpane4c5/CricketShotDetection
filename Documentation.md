@@ -20,7 +20,7 @@ Total Size 	:  ~ 273 GB
 Extensions : .avi, .mp4
 FPS : 25.0 (const. after conversion using ffmpeg)
 Dimensions (W, H) : (640, 360)
-Codec for converted videos: .h264
+Codec for converted videos: .h264 (for those videos that have been converted)
 
 Meta_file : (created on the lines of ActivityNet) 
 {
@@ -78,11 +78,12 @@ The dataset_25_fps_meta_info.json file is created in the supporting_files folder
 4. Labeling (semi-automatically) the frames of the video (folder : labels)
 
 
-4. Boundary Detection : (folder : boundary_detection)
+
+5. Boundary Detection : (folder : boundary_detection)
 
 
 
-5. Shot Extraction : (folder : shot_extraction)
+6. Shot Extraction : (folder : shot_extraction)
 Using the predicted shots boundaries, first frame camera models pre-trained on HOG features, and 
 
 _____________________________________________________________________________________________________
@@ -95,9 +96,9 @@ ________________________________________________________________________________
 ### Code optimizations and modifications
 
 1. Parallelize the extract_hist_diff.py and extract_sqchi_diffs.py over (a) GPU (using cv::cuda)
-(b) Over multiple processors (using multiprocess)
+(b) Over multiple processors (using multiprocess) (b. is done)
 
-2. Verification scripts to see that features extracted on local machine and server are the same. (might differ in .h264 encoding or a different codec, Does it depend on the codec?). May consider a type of Randomized algo (improved time complexity)
+2. Verification scripts to see that features extracted on local machine and server are the same. (might differ in .h264 encoding or a different codec, Does it depend on the codec?). May consider a type of Randomized algo (improved time complexity). Checked MD5sum of some files.
 
 3. SVM training of cam1 and cam2 frames on HOG features. Optimize the features, SVM params, and consider different models like Random Forests etc. (shot_extraction/svm_model.py). Check for misclassified examples.
 
@@ -131,6 +132,12 @@ ________________________________________________________________________________
 10. Detectron from FB Research (Mask R-CNN) for Tracking
 
 11. PyTorch 
+
+12. Dynamic Time Warping Algo for time series comparison.
+
+13. Using shape features and tracking those objects.
+
+14. FlowNet implementation for KTH
 
 
 Partially completed:

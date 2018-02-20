@@ -110,22 +110,22 @@ def getBoundaryValuesForVideo(srcVideo):
 def waitTillEscPressed():
     while(True):
         # For moving forward
-        if cv2.waitKey(10)==27:
+        if cv2.waitKey(0)==27:
             print("Esc Pressed. Move Forward without labeling.")
             return 1
         # For moving back
-        elif cv2.waitKey(10)==98:
+        elif cv2.waitKey(0)==98:
             print("'b' pressed. Move Back.")
             return 0
-        elif cv2.waitKey(10)==121:
+        elif cv2.waitKey(0)==121:
             print("'y' pressed. Label and Move Forward.")
             return 2
 
 
 if __name__=='__main__':
-    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
+    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps_test_set_1"
     
-    destFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/labels"
+    destFolder = "/home/hadoop/VisionWorkspace/Cricket/group1/sbd"
     create_labels(srcVideoFolder, destFolder)
     
     
