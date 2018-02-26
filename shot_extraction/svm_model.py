@@ -26,7 +26,8 @@ svm_params = dict(kernel_type=cv2.ml.SVM_LINEAR, svm_type=cv2.ml.SVM_C_SVC, \
 
 class StatModel(object):
     def load(self, fn):
-        self.model.load(fn) #Known bug: github.com/opencv/opencv/issues/4969     
+        #self.model.load(fn) #Known bug: github.com/opencv/opencv/issues/4969     
+        self.model = cv2.ml.SVM_load(fn)
     def save(self, fn):
         self.model.save(fn)
 
@@ -198,12 +199,13 @@ if __name__=='__main__':
     # Train the model on 
     model1 = train_model(os.path.join(PROJECT_PREFIX, CAM1_FRAMES_DATA), 321)
     # save model to disk
-    model1.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
+    #model1.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
     
     # Save the model to disk
-    model2 = train_model(os.path.join(PROJECT_PREFIX, CAM2_FRAMES_DATA), 456)
-    model2.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam2_svm_model.dat"))
+    #model2 = train_model(os.path.join(PROJECT_PREFIX, CAM2_FRAMES_DATA), 456)
+    #model2.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam2_svm_model.dat"))
     
     # Load an existing model
-    # model = SVM
-    # model.load("cam1_svm_model.dat")
+    model1 = SVM()
+    model1.load(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
+    print model1

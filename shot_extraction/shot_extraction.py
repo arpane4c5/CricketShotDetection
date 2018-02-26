@@ -16,8 +16,11 @@ import svm_model as svm
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
-SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
+#DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
+#SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
+# Local Params
+DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
+SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
 CAM1_MODEL = "cam1_svm_model.dat"
 CAM2_MODEL = "cam2_svm_model.dat"
 HOG_FILE = "hog.xml"
@@ -101,7 +104,7 @@ def get_shots_from_video(srcVideoFolder, srcVideo, hog, cam1_model, cam2_model, 
     dimensions = (int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), \
                   int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    nFrames = (int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)))
+    nFrames = (int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
     vid_shots = []
     start_frame = -1
     end_frame = -1
@@ -118,20 +121,26 @@ def get_shots_from_video(srcVideoFolder, srcVideo, hog, cam1_model, cam2_model, 
     # Method 1: Naive method
     
     for i, cut_pos in enumerate(vcuts_list):
+        
         cap.set(cv2.CAP_PROP_POS_FRAMES, cut_pos)
+        print "Pos : "+str(cut_pos)
         ret, frame = cap.read()
+        #cv2.imshow("prev", frame)
+        #ret, frame = cap.read()
+        #cv2.imshow("Current", frame)
+        #cv2.waitKey(0)
         
         if ret:
             # convert to grayscale and get HOG feature vector
             hog_vec = hog.compute(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-            cam1_pred = np.int32(cam1_model.predict(hog_vec))
-            cam2_pred = np.int32(cam2_model.predict(hog_vec))
+            cam1_pred = np.int32(cam1_model.predict(hog_vec[np.newaxis, :]))
+            cam2_pred = np.int32(cam2_model.predict(hog_vec[np.newaxis, :]))
             if start_frame == -1:   # if shot has has not begun
-                if cam1_pred == 1:  # +ve prediction
+                if cam1_pred[0] == 1:  # +ve prediction
                     start_frame = cut_pos
                 # else do not test for cam2, since shot has not begun
             elif start_frame >= 0:  # if shot has begun
-                if cam2_pred == 0:      # ball is within view, not switched to cam2
+                if cam2_pred[0] == 0:      # ball is within view, not switched to cam2
                     end_frame = cut_pos-1
                 else:
                     if (i+1) < ncuts: # switched to cam2
@@ -212,8 +221,6 @@ def waitTillEscPressed():
             
 
 if __name__=='__main__':
-    # path for sample dataset on localhost
-    #srcVideoFolder = "/home/hadoop/VisionWorkspace/VideoData/ICC WT20"
     
     # read the meta info from meta_info file
     with open(os.path.join(SUPPORTING_FILES_PATH, DATASET_INFO), "r") as fp:
@@ -223,6 +230,7 @@ if __name__=='__main__':
     hog_obj = cv2.HOGDescriptor(os.path.join(SUPPORTING_FILES_PATH, HOG_FILE))
     # load the pretrained cam1 and cam2 svm models
     cam1_model = svm.SVM()
+    #cam1_model = cv2.ml.SVM_load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
     cam1_model.load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
     cam2_model = svm.SVM()
     cam2_model.load(os.path.join(SUPPORTING_FILES_PATH, CAM2_MODEL))
@@ -241,6 +249,10 @@ if __name__=='__main__':
     #extract_shot_from_video(srcVideoFolder, srcVideosList[0])
     
     # write shots_dict to disk
+    shots_filename = "cricShots_hdiffGray_naive.json"
+    with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
+        json.dump(shots_dict, fp)
+    
     
     
 ###############################################################################    

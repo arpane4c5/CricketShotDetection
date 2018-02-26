@@ -31,6 +31,15 @@ Meta_file : (created on the lines of ActivityNet)
 }
 
 
+##### Sample Dataset
+WT20 2016 highlight videos. 
+
+Total Videos : 26
+Extensions : .avi
+Total Size : ~ 1 GB
+Dimensions and FPS are same as above
+
+
 _____________________________________________________________________________________________________
 
 ### Steps for execution:
@@ -39,19 +48,6 @@ ________________________________________________________________________________
 Source: Youtube, Hotstar, etc.
 
 * download_videos.py : Script to take the youtube video ids from a text file and create a bash script which downloads the videos using youtube-dl library. 
-
-SBD Labeling (folder: labels):
-
-* Created scripts SBD_create_labels.py and create_shot_labels.py
-
-* SBD_create_labels.py: for semi-automating the labeling task. It iterates over a set of videos (kept in subfolders in a path). For every video, a corresponding JSON file is created in a similar directory structure. The json has following structure only for CUT boundaries.
-{"video_subfolder_file_path": [(preFNum, postFNum), (preFNum, postFNum), ....]}
---> User can use the following keys for traversing
-ESC: Move Forward without positive labeling (puts a -ve label)
-y  : mark a CUT boundary and move forward
-b  : move back and delete last +ve/-ve label
-
-* create_shot_labels.py: 
 
 
 2. Preprocessing (folder: preprocess)
@@ -77,14 +73,45 @@ The dataset_25_fps_meta_info.json file is created in the supporting_files folder
 
 4. Labeling (semi-automatically) the frames of the video (folder : labels)
 
+SBD Labeling (folder: labels):
+
+* Created scripts SBD_create_labels.py and create_shot_labels.py
+
+* SBD_create_labels.py: for semi-automating the labeling task. It iterates over a set of videos (kept in subfolders in a path). For every video, a corresponding JSON file is created in a similar directory structure. The json has following structure only for CUT boundaries.
+{"video_subfolder_file_path": [(preFNum, postFNum), (preFNum, postFNum), ....]}
+--> User can use the following keys for traversing
+ESC: Move Forward without positive labeling (puts a -ve label)
+y  : mark a CUT boundary and move forward
+b  : move back and delete last +ve/-ve label
+
+* create_shot_labels.py: for semi-automating the labeling of start and end points of cricket strokes (delivery). For every video, a corresponding JSON file is created in a similar directory structure. The json has following structure.
+{"video_subfolder_file_path": [(start1, end1), (start2, end2), ....]}
+--> User can use the following keys for traversing and labeling
+ESC: Push boolean value of isShot (denotes if current frame is part of cricket shot) to stack and move forward to next consecutive frame pair.
+s : change the boolean value of isShot to True, if prevFrame and nextFrame represent a transition to a cricket shot.
+f : change the boolean value of isShot to False, if prevFrame and nextFrame represent a transition from a cricket shot.
+b : pop the last value from the stack and move back in the frame sequence.
+
+The above two scripts are executed for the sample set of cricket videos and also a partial test set (about 3 GB) taken from the full dataset.
 
 
 5. Boundary Detection : (folder : boundary_detection)
 
 
+6. Camera Models : (folder : camera_models)
 
-6. Shot Extraction : (folder : shot_extraction)
+
+7. Shot Extraction : (folder : shot_extraction)
 Using the predicted shots boundaries, first frame camera models pre-trained on HOG features, and 
+
+* predict_boundaries.py: for predicting CUTs on the histogram features, using a saved pretrained model (pretrained on the same features), save the predictions in a json file and calculate the precision, recall and f-score for the predictions on the ground truth labels of test set samples. 
+
+
+8. Supporting files (folder : supporting_files)
+Contains the meta data files, labels etc. for the full dataset and sample dataset
+
+9. Extracted features (folder : extracted_features)
+Contains the extracted features of the full dataset. Histogram differences of RGB and grayscale frames, and chi-squared difference features of the consecutive frames of the full dataset. 
 
 _____________________________________________________________________________________________________
 
