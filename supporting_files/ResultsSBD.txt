@@ -1,0 +1,136 @@
+Results of SBD on Highlight Videos:
+
+Training set : 16 Videos
+Set: Validation (5 Videos)
+
+____________________________________________________________
+
+1. Histogram Differences of consecutive frames (Grayscale)
+Features Dataframe shape : (71813, 2) :: Cols : (X, Y)
+
+a) Model: SVM (kernel = 'linear') : Bins = 256
+
+Precision : 0.976973684211
+Recall : 0.983443708609
+F-measure : 0.980198019802
+____________________________________________________________
+
+b) Model: SVM (kernel = 'rbf') : Bins = 256 : A lot of deletions
+Precision : 1.0
+Recall : 0.00331125827815
+F-measure : 0.00660066006601
+____________________________________________________________
+
+c) Model: RF (max_depth=2) : Bins = 256
+Precision : 0.976821192053
+Recall : 0.976821192053
+F-measure : 0.976821192053
+
+____________________________________________________________
+############################################################
+____________________________________________________________
+To be reported:
+
+Val Set :  RF (max_depth=2, random_state=1234) Grayscale Bins = 256
+Precision : 0.980066445183
+Recall : 0.976821192053
+F-measure : 0.978441127695
+
+Test set: 
+Precision : 0.979591836735
+Recall : 0.971098265896
+F-measure : 0.975326560232
+____________________________________________________________
+############################################################
+____________________________________________________________
+
+d) Model : RF (max_depth=2) : Bins =16
+Precision : 0.0833333333333
+Recall : 0.00331125827815
+F-measure : 0.00636942675159
+____________________________________________________________
+
+e) Model : RF (max_depth=2) : Bins = 128
+Precision : 0.93795620438
+Recall : 0.850993377483
+F-measure : 0.892361111111
+
+Bins = 240
+Precision : 0.976897689769
+Recall : 0.980132450331
+F-measure : 0.978512396694
+
+Bins = 224
+Precision : 0.976821192053
+Recall : 0.976821192053
+F-measure : 0.976821192053
+____________________________________________________________
+____________________________________________________________
+
+
+2. Weighted Chi Squared Histogram Differences of consecutive frames
+____________________________________________________________
+____________________________________________________________
+
+3. Histogram Differences of consecutive frames (BGR)
+Features Dataframe shape : (71813, 4)  ::  Cols : (X1, X2, X3, Y)
+
+a) Model: Random Forest classifier (n_estimators=10, max_depth=2, random_state=0)
+Bins = 256
+Precision : 0.98
+Recall : 0.973509933775
+F-measure : 0.976744186047
+____________________________________________________________
+
+b) Model: Random Forest classifier :: Bins = 240
+Precision : 0.976973684211
+Recall : 0.983443708609
+F-measure : 0.980198019802
+____________________________________________________________
+____________________________________________________________
+____________________________________________________________
+
+Results of the trained Camera models (on the first frames)
+
+CAM1 Models (starting of the cricket shot)
+1. LinearSVM on HOG features of 360x640 Grayscale frames
+HOG feature vector sizes : 79380x1 
+No. of training examples = 256 
+ 
+Error: 1.80 %
+Confusion Matrix:
+[[52  1]
+ [ 1 57]]
+
+ CAM2
+Error: 4.95 %
+Confusion Matrix:
+[[48  4]
+ [ 1 48]]
+
+ SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
+  decision_function_shape=None, degree=3, gamma='auto', kernel='linear',
+  max_iter=-1, probability=False, random_state=None, shrinking=True,
+  tol=0.001, verbose=False)
+____________________________________________________________
+
+
+SBD Accuracy on the test set sample, for Lin SVM trained on HistDiffs Grayscale
+Total files traversed : 28
+Precision : 0.354523463957
+Recall : 0.841718355157
+F-measure : 0.498910675381
+
+RF on HistDiffs Grayscale
+Total files traversed : 28
+Precision : 0.365189428198
+Recall : 0.834826556398
+F-measure : 0.508109619687
+
+
+Final Eval Score : For naive_v1.json
+Total files traversed : 32
+Total segments : 1155
+Total_tiou (all vids) : 431.505440976
+Weighted Averaged TIoU  : 0.373597784395
+Time for finding shot segments : 6.571964305555555 hrs

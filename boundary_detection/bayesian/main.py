@@ -28,14 +28,25 @@ import cv2
 import matplotlib.pyplot as plt
 import pandas as pd
 import SBD_xml_operations as lab_xml
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
+import pickle
 
 # Server params
 #DATASET = "/opt/datasets/cricket/ICC_WT20"
 #LABELS = "/opt/datasets/cricket/gt_ICC_WT20"
 
 # Local params
-DATASET = "/home/hadoop/VisionWorkspace/VideoData/ICC WT20"
+DATASET = "/home/hadoop/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
 LABELS = "/home/hadoop/VisionWorkspace/ActivityProjPy/gt_ICC_WT20"
+
+# Set the parameter candidates
+parameter_candidates = [
+  {'C': [1], 'kernel': ['linear']}]
+ # {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']},
+#]
+
 
 # Split the dataset files into training, validation and test sets
 def split_dataset_files():
@@ -48,12 +59,12 @@ def split_dataset_files():
 # function to extract the features from a list of videos
 # Params: vids_lst = list of videos for which hist_diff values are to be extracted
 # Return: hist_diff_all = f values of histogram diff each (256 X C) (f is no of frames)
-def extract_hist_diff_vids(vids_lst):
+def extract_hist_diff_vids(vids_lst, color=('g'), bins=256):
     # iterate over the videos to extract the hist_diff values
     hist_diff_all = []
     for idx, vid in enumerate(vids_lst):
         #get_hist_diff(os.path.join(DATASET, vid+'.avi'))
-        diffs = getHistogramOfVideo(os.path.join(DATASET, vid+'.avi'), "", 100)
+        diffs = getHistogramOfVideo(os.path.join(DATASET, vid+'.avi'), color, bins)
         #print "diffs : ",diffs
         print "Done : " + str(idx+1)
         hist_diff_all.append(diffs)
@@ -67,7 +78,8 @@ def extract_hist_diff_vids(vids_lst):
 # function to get the L1 distances of histograms and plot the signal
 # for getting the grayscale histogram differences, uncomment two lines
 # Copied and editted from shot_detection.py script
-def getHistogramOfVideo(srcVideoPath, destPath, th):
+# color=('g') for Grayscale histograms, color=('b','g','r') for RGB 
+def getHistogramOfVideo(srcVideoPath, color=('g'), N=256):
     # get the VideoCapture object
     cap = cv2.VideoCapture(srcVideoPath)
     
@@ -88,10 +100,8 @@ def getHistogramOfVideo(srcVideoPath, destPath, th):
     #print(out)
     frameCount = 0
     #color = ('b', 'g', 'r')     # defined for 3 channels
-    # uncomment following line for grayscale
-    color = ('b')
-    prev_hist = np.zeros((256, len(color)))
-    curr_hist = np.zeros((256, len(color)))
+    prev_hist = np.zeros((N, len(color)))
+    curr_hist = np.zeros((N, len(color)))
     diffs = np.zeros((1, len(color)))
     while(cap.isOpened()):
         # Capture frame by frame
@@ -102,12 +112,13 @@ def getHistogramOfVideo(srcVideoPath, destPath, th):
             # frame = cv2.flip(frame)
             frameCount = frameCount + 1
             
-            # uncomment for grayscale frames convert to grayscale
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)         
+            # Check for grayscale
+            if len(color)==1:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
             for i,col in enumerate(color):
                 # cv2.calcHist(images, channels, mask, histSize, ranges[, hist[, accumulate]])
-                curr_hist[:,i] = np.reshape(cv2.calcHist([frame], [i], None, [256], [0,256]), (256,))
+                curr_hist[:,i] = np.reshape(cv2.calcHist([frame], [i], None, [N], [0,N]), (N,))
             
             if frameCount > 1:
                 # find the L1 distance of the current frame hist to previous frame hist 
@@ -132,9 +143,9 @@ def getHistogramOfVideo(srcVideoPath, destPath, th):
             
             # Display the resulting frame
             # cv2.imshow('frame', gray)
-            if cv2.waitKey(10) == 27:
-                print('Esc pressed')
-                break
+            #if cv2.waitKey(10) == 27:
+            #    print('Esc pressed')
+            #    break
             
         else:
             break
@@ -200,18 +211,31 @@ def create_dataframe(pos_samples, neg_samples):
         neg_feats = np.vstack((neg_feats, neg_samples[i]))
     neg_feats = np.hstack((neg_feats, np.zeros((neg_feats.shape[0], 1))))
     
-    # change this if no of features 
-    df = pd.DataFrame(np.vstack((pos_feats, neg_feats)), columns=["X", "Y"])
+    # change this if no of features are different
+    if pos_feats.shape[1]==2:
+        cols = ["X", "Y"]
+    else:
+        cols = ["X1", "X2", "X3", "Y"]
+    df = pd.DataFrame(np.vstack((pos_feats, neg_feats)), columns=cols)
+    
     # shuffle dataframe
-    #df = df.sample(frac=1)  # .reset_index(drop=True)
+    df = df.sample(frac=1).reset_index(drop=True)
     return df
     
 # given a dataframe in the form [X1, X2, .., Y] with Y being binary, train a model
 def train_model1(df_train):
-    from sklearn import svm
-    clf = svm.SVC(kernel = 'linear')
-    # 
+    #clf = svm.SVC(kernel = 'linear')
+    clf = RandomForestClassifier(max_depth=2, random_state=1234)
+    # For grid search over the parameters of gamma and kernel functions
+#    clf = GridSearchCV(estimator=svm.SVC(), param_grid=parameter_candidates)
     clf.fit(df_train.loc[:, df_train.columns != 'Y'], df_train.loc[:,'Y'])
+    
+#    # Print out the results 
+#    print('Best score for training data:', clf.best_score_)
+#    print('Best `C`:',clf.best_estimator_.C)
+#    print('Best kernel:',clf.best_estimator_.kernel)
+#    print('Best `gamma`:',clf.best_estimator_.gamma)
+    
     return clf
     
 # calculate the precision, recall and f-measure for the validation of test set
@@ -248,9 +272,9 @@ def  calculate_accuracy(preds_dict, split = "val"):
     return [recall, precision, f_measure]
 
 # function to predict the cuts on the validation or test videos
-def make_predictions(vids_lst, model, split = "val"):
+def make_predictions(vids_lst, model, color, bins, split = "val"):
     # extract the hist diff features and return as a list entry for each video in vids_lst
-    hist_diffs = extract_hist_diff_vids(vids_lst)
+    hist_diffs = extract_hist_diff_vids(vids_lst, color, bins)
     # form a dictionary of video names (as keys) and corresponding list of hist_diff values
     #hist_diffs_dict = dict(zip(vids_lst, hist_diffs))
     print "Extracted features !! "
@@ -258,6 +282,8 @@ def make_predictions(vids_lst, model, split = "val"):
     preds = {}
     # make predictions using the model
     for idx, vname in enumerate(vids_lst):
+        # Add the additional feature
+        #features = add_feature(hist_diffs[idx], )
         # make predictions using the model (returns a 1D array of 0s and 1s)
         vpreds = model.predict(hist_diffs[idx])
         # gives a n x 1 array of indices where n non-zero val occurs
@@ -268,52 +294,69 @@ def make_predictions(vids_lst, model, split = "val"):
     
     return calculate_accuracy(preds)
 
+# add feature: no of frames since last CUT
+# sample is the numpy array containing the sequence of histogram difference values for one video
+# vcuts_lst is the list of values where CUTs occur for one video
+# returns sample with an additional column of counts of #Frames since last CUT
+def add_feature(sample, vcuts_lst):
+    # add the "#frames since last CUT" values
+    nFr = []
+    for i,fno in enumerate(vcuts_lst):
+        if i==0:    # add values till 1st CUT
+            nFr.extend(range(1,fno+1))
+        else:       # reset count after each CUT and extend list
+            nFr.extend(range(fno-vcuts_lst[i-1]))
+    nFr.extend(range(len(sample)-len(nFr)))     # After final CUT to the end
+    print "Len(nFr) : "+str(len(nFr))
+    return np.hstack((sample, np.array(nFr).reshape((len(nFr),1))))
+
+
 if __name__=="__main__":
     # Divide the samples files into training set, validation and test sets
     train_lst, val_lst, test_lst = split_dataset_files()
     #print(train_lst, len(train_lst))
     #print 100*"-"
-    #print val_lst
-    #print 100*"-"
-    #print test_lst
+    # specifiy for grayscale or BGR values
+    color = ('g')
+    bins = 256      # No of bins in the historgam
     
     # Extract the histogram difference features from the training set
-#    hist_diffs_train = extract_hist_diff_vids(train_lst)
-#    
-#    train_lab = ["gt_"+f+".xml" for f in train_lst]
-#    val_lab = ["gt_"+f+".xml" for f in val_lst]
-#    test_lab = ["gt_"+f+".xml" for f in test_lst]
-#    
-#    # get the positions where cuts exist for training set
-#    cuts_lst = []
-#    for t in train_lab:
-#        cuts_lst.append(lab_xml.get_cuts_list_from_xml(os.path.join(LABELS, t)))
-#        #print cuts_lst
-#    
-#    pos_samples = []
-#    neg_samples = []
-#    
-#    for idx, sample in enumerate(hist_diffs_train):
-#        pos_samples.append(sample[cuts_lst[idx],:])     # append a np array of pos samples
-#        neg_indices = list(set(range(len(sample))) - set(cuts_lst[idx]))
-#        # subset
-#        neg_samples.append(sample[neg_indices,:])
-#    
-#    
-#    # Save the pos_samples and neg_samples lists to disk
-    import pickle
-#    with open("pos_samples.pkl", "wb") as fp:
+    hist_diffs_train = extract_hist_diff_vids(train_lst, color, bins)
+    
+    train_lab = ["gt_"+f+".xml" for f in train_lst]
+    val_lab = ["gt_"+f+".xml" for f in val_lst]
+    test_lab = ["gt_"+f+".xml" for f in test_lst]
+    
+    # get the positions where cuts exist for training set
+    cuts_lst = []
+    for t in train_lab:
+        cuts_lst.append(lab_xml.get_cuts_list_from_xml(os.path.join(LABELS, t)))
+        #print cuts_lst
+    
+    pos_samples = []
+    neg_samples = []
+    
+    for idx, sample in enumerate(hist_diffs_train):
+        #sample = add_feature(sample, cuts_lst[idx])     # add feature #Frames since last CUT
+        pos_samples.append(sample[cuts_lst[idx],:])     # append a np array of pos samples
+        neg_indices = list(set(range(len(sample))) - set(cuts_lst[idx]))
+        # subset
+        neg_samples.append(sample[neg_indices,:])
+    
+    
+    # Save the pos_samples and neg_samples lists to disk
+#    with open("pos_samples_bgr.pkl", "wb") as fp:
 #        pickle.dump(pos_samples, fp)
 #        
-#    with open("neg_samples.pkl", "wb") as fp:
+#    with open("neg_samples_bgr.pkl", "wb") as fp:
 #        pickle.dump(neg_samples, fp)
         
     # Read the lists from disk to the pickle files
-    with open("pos_samples.pkl", "rb") as fp:
-        pos_samples = pickle.load(fp)
-    
-    with open("neg_samples.pkl", "rb") as fp:
-        neg_samples = pickle.load(fp)
+#    with open("pos_samples.pkl", "rb") as fp:
+#        pos_samples = pickle.load(fp)
+#    
+#    with open("neg_samples.pkl", "rb") as fp:
+#        neg_samples = pickle.load(fp)
         
     #print "Visualizing positive and negative training samples ..."
     #visualize_feature(pos_samples, "Positive Samples", 30)
@@ -323,23 +366,34 @@ if __name__=="__main__":
     print df.shape
     
     # Training a model given a dataframe
-    print "Training SVM model ..."
-    svm_model = train_model1(df)
+    print "Training model ..."
+    trained_model = train_model1(df)
     
     # get predictions on the validation or test set videos
     #pr = svm_model.predict(df.sample(frac=0.001).loc[:,['X']])
     
     # extract the validation/test set features and make predictions on the same
     print "Predicting on the validation set !!"
-    [recall, precision, f_measure] = make_predictions(val_lst, svm_model)
+    [recall, precision, f_measure] = make_predictions(val_lst, trained_model, color, bins)
     print "Precision : "+str(precision)
     print "Recall : "+ str(recall)
     print "F-measure : "+str(f_measure)
     
+    print "Predicting on the test set !!"
+    [recall, precision, f_measure] = make_predictions(test_lst, trained_model, color, bins)
+    print "Precision : "+str(precision)
+    print "Recall : "+ str(recall)
+    print "F-measure : "+str(f_measure)
+    
+    ## Save model to disk
+    from sklearn.externals import joblib
+    joblib.dump(trained_model, "sbd_model_RF_histDiffs_gray.pkl")
     
     #######################################################
     # Extend 1:
-    # Add feature: #Frames till the last shot boundary
+    # Add feature: #Frames till the last shot boundary: Will it be correct feature
+    # How to handle testing set feature. A single false +ve will screw up the subsequent 
+    # predictions.
     
     #######################################################
     

@@ -21,7 +21,7 @@ import os
 # Local Params
 DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
 SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
-GT_SHOTS = "dataset_25_fps_test_set_labels/labels_shots"
+GT_SHOTS = "dataset_25_fps_test_set_labels/corrected_shots_only_T20"
 DATASET_INFO = "dataset_25_fps_meta_info.json"
 
 # Take the predictions json file and iterate over the ground truth kept inside the folder
@@ -29,7 +29,8 @@ DATASET_INFO = "dataset_25_fps_meta_info.json"
 def calculate_tIoU(gt_dir, shots_dict):
     # Iterate over the gt files and collect labels into a gt dictionary
     sfp_lst = os.listdir(gt_dir)
-    M_tiou = 0
+    tot_tiou = 0
+    tot_segments = 0
     #for sf in sfp_lst:
     traversed_tot = 0
     for sf in sfp_lst:
@@ -47,17 +48,22 @@ def calculate_tIoU(gt_dir, shots_dict):
                     
                     test_list = shots_dict[vid_key]
                     print "Done "+str(traversed_tot+traversed)+" : "+vid_key
-                    # calculate M_tiou for the video vid_key
-                    M_tiou += get_vid_tiou(gt_list, test_list)
+                    # calculate tiou for the video vid_key
+                    vid_tiou = get_vid_tiou(gt_list, test_list)
+                    # vid_tiou weighted with no of ground truth segments
+                    tot_tiou += (vid_tiou*len(gt_list))
+                    tot_segments += len(gt_list)
                     traversed += 1
                     
             traversed_tot += traversed
             
     print "Total files traversed : "+str(traversed_tot)
-    print "M_tiou (all vids) : " + str(M_tiou)
-    print "Averaged TIoU : " + str(M_tiou/traversed_tot)
+    print "Total segments : " + str(tot_segments)
+    print "Total_tiou (all vids) : " + str(tot_tiou)
+    #print "Averaged TIoU : " + str(tot_tiou/traversed_tot)
+    print "Weighted Averaged TIoU  : " + str(tot_tiou/tot_segments)
     
-    return (M_tiou/traversed_tot)
+    return (tot_tiou/tot_segments)
 
 # get the tiou value for s = {s1, s2, ..., sN} and s' = {s'1, s'2, ..., s'M}
 def get_vid_tiou(gt_list, test_list):
@@ -104,7 +110,7 @@ def get_iou(gt_shot, test_shot):
 
 if __name__ == '__main__':
     # Take 
-    pred_shots_file = "cricShots_hdiffGray_naive.json"
+    pred_shots_file = "cricShots_hdiffGray_naive_v1.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, pred_shots_file), 'r') as fp:
         shots_dict = json.load(fp)
         

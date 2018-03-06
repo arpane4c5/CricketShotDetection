@@ -21,7 +21,7 @@ DATASET = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
 SUPPORTING_FILES = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
 HIST_DIFFS = "/home/hadoop/VisionWorkspace/Cricket/scripts/extracted_features/hist_diff_grayscale_ds_25_fps"
 META_FILE = "dataset_25_fps_meta_info.json"
-MODEL_LIN_SVM = "sbd_LinSVM_histDiffs.pkl"      # trained on hist_diffs_grayscale
+MODEL_LIN_SVM = "sbd_model_RF_histDiffs_gray.pkl"      # trained on hist_diffs_grayscale
 SBD_TEST_SET_LABELS = "dataset_25_fps_test_set_labels/sbd"
 
 # function to iterate over all the video features of the videos (kept at a loc)
@@ -124,21 +124,21 @@ if __name__=="__main__":
     with open(os.path.join(SUPPORTING_FILES, META_FILE), 'r') as fp:
         meta_info = json.load(fp)
 
-    cuts_file = "ds25fps_cuts_hist_diffs_gray_lsvm.json"    
+    cuts_file = "ds25fps_cuts_hist_diffs_gray_rf.json"    
     ###############################################################################
     # Uncomment either this block, if we want to predict from features and save to disk,
     # or load the predictions from disk in the next section...
 #    # Predict on all the videos of the dataset
-#    cuts = predict_for_all(HIST_DIFFS, meta_info, \
-#                           os.path.join(SUPPORTING_FILES, MODEL_LIN_SVM), stop='all')
+    cuts = predict_for_all(HIST_DIFFS, meta_info, \
+                           os.path.join(SUPPORTING_FILES, MODEL_LIN_SVM), stop='all')
 #    
-#    with open(os.path.join(SUPPORTING_FILES, cuts_file), 'w') as fp:
-#        json.dump(cuts, fp)
+    with open(os.path.join(SUPPORTING_FILES, cuts_file), 'w') as fp:
+        json.dump(cuts, fp)
     
     ###############################################################################    
     # load the saved cut predictions
-    with open(os.path.join(SUPPORTING_FILES, cuts_file), 'r') as fp:
-        cuts = json.load(fp)    
+    #with open(os.path.join(SUPPORTING_FILES, cuts_file), 'r') as fp:
+    #    cuts = json.load(fp)    
 
     # calculcate accuracy (for CUTs) on the test set sample of the full main dataset.
     print "Predicting on the test set sample set !!"

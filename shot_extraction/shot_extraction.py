@@ -12,7 +12,8 @@ import cv2
 import numpy as np
 import os
 import json
-import svm_model as svm
+from sklearn import svm
+from sklearn.externals import joblib
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
@@ -21,37 +22,11 @@ import svm_model as svm
 # Local Params
 DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
 SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
-CAM1_MODEL = "cam1_svm_model.dat"
-CAM2_MODEL = "cam2_svm_model.dat"
+CAM1_MODEL = "cam1_svm.pkl"
+CAM2_MODEL = "cam2_svm.pkl"
 HOG_FILE = "hog.xml"
 DATASET_INFO = "dataset_25_fps_meta_info.json"
-CUTS_INFO = "ds25fps_cuts_hist_diffs_gray_lsvm.json"
-
-
-class VideoShot:
-    '''This class represents a single Video Shot'''
-    frameCounter = 0
-    framePointer = -1
-    shot = None
-    
-    # constructor
-    def __init__(self, srcVideoPath, st_frame, end_frame):
-        self.shot = cv2.VideoCapture(srcVideoPath)
-        if self.shot.isOpened():
-            print True
-    
-    def addNextFrame(self, frame):
-        # add the frame and
-        self.frameCounter = self.frameCounter + 1
-        return
-    
-    def displayVideoShot(self):
-        return
-        
-    def save(self, xmlFileName):
-        return
-    
-    # define more functions here for VideoShot class
+CUTS_INFO = "ds25fps_cuts_hist_diffs_gray_rf.json"
     
 
 # Iterate over the videos using keys of the meta_info and extract shots for each
@@ -79,8 +54,8 @@ def extract_shots_from_all_videos(meta_info, hog_obj, cam1_model, cam2_model, \
         print "Shots of video "+str(idx)+" : "+vid_key
         print vid_shots
 
-        if idx == 2:    # stop after 3 videos, Comment this to traverse entire ds
-            break
+        #if idx == 2:    # stop after 3 videos, Comment this to traverse entire ds
+        #    break
 
         #######################################################################
         # Method 2: Use Shot Proposals, like Action Proposals method
@@ -123,7 +98,7 @@ def get_shots_from_video(srcVideoFolder, srcVideo, hog, cam1_model, cam2_model, 
     for i, cut_pos in enumerate(vcuts_list):
         
         cap.set(cv2.CAP_PROP_POS_FRAMES, cut_pos)
-        print "Pos : "+str(cut_pos)
+        #print "Pos : "+str(cut_pos)
         ret, frame = cap.read()
         #cv2.imshow("prev", frame)
         #ret, frame = cap.read()
@@ -131,10 +106,11 @@ def get_shots_from_video(srcVideoFolder, srcVideo, hog, cam1_model, cam2_model, 
         #cv2.waitKey(0)
         
         if ret:
-            # convert to grayscale and get HOG feature vector
+            # convert to grayscale and get HOG feature col vector (79380,1)
             hog_vec = hog.compute(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-            cam1_pred = np.int32(cam1_model.predict(hog_vec[np.newaxis, :]))
-            cam2_pred = np.int32(cam2_model.predict(hog_vec[np.newaxis, :]))
+            # reshape into a row vector to pass to predict()
+            cam1_pred = np.int32(cam1_model.predict(hog_vec.reshape((-1, hog_vec.shape[0]))))
+            cam2_pred = np.int32(cam2_model.predict(hog_vec.reshape((-1, hog_vec.shape[0]))))
             if start_frame == -1:   # if shot has has not begun
                 if cam1_pred[0] == 1:  # +ve prediction
                     start_frame = cut_pos
@@ -205,7 +181,6 @@ def method2():
 ###############################################################################
 
 
-
 def display_mat_stats(mat):
     print "Shape : "+str(mat.shape)+"  ::  Type : "+str(type(mat))
     print "Sum of values : "+str(np.sum(mat))
@@ -228,17 +203,14 @@ if __name__=='__main__':
     
     # create the cv2.HOGDescriptor object to be applied to grayscale images
     hog_obj = cv2.HOGDescriptor(os.path.join(SUPPORTING_FILES_PATH, HOG_FILE))
+    
     # load the pretrained cam1 and cam2 svm models
-    cam1_model = svm.SVM()
-    #cam1_model = cv2.ml.SVM_load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
-    cam1_model.load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
-    cam2_model = svm.SVM()
-    cam2_model.load(os.path.join(SUPPORTING_FILES_PATH, CAM2_MODEL))
+    cam1_model = joblib.load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
+    cam2_model = joblib.load(os.path.join(SUPPORTING_FILES_PATH, CAM2_MODEL))
     
     # read the cut predictions json file.
     with open(os.path.join(SUPPORTING_FILES_PATH, CUTS_INFO), 'r') as fp:
         cuts_dict = json.load(fp)
-    
     
     shots_dict = {}
     
@@ -249,7 +221,7 @@ if __name__=='__main__':
     #extract_shot_from_video(srcVideoFolder, srcVideosList[0])
     
     # write shots_dict to disk
-    shots_filename = "cricShots_hdiffGray_naive.json"
+    shots_filename = "cricShots_hdiffGray_naive_v1.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
         json.dump(shots_dict, fp)
     

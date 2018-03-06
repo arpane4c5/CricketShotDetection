@@ -13,6 +13,10 @@ Refer: opencv/samples/python/digits.py  for the SVM usage details.
 import cv2
 import numpy as np
 import os
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import svm
+import pandas as pd
+from sklearn.externals import joblib
 
 # Server Param
 #PROJECT_PREFIX = "/home/arpan/VisionWorkspace/shot_detection"
@@ -20,42 +24,6 @@ PROJECT_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/scripts"
 CAM1_FRAMES_DATA = "camera_models/cam1_frames"
 CAM2_FRAMES_DATA = "camera_models/cam2_frames"
 CLASS_N = 2
-# refer the opencv sample program on SVM training for details of params
-svm_params = dict(kernel_type=cv2.ml.SVM_LINEAR, svm_type=cv2.ml.SVM_C_SVC, \
-            C=2.67, gamma = 5.383)
-
-class StatModel(object):
-    def load(self, fn):
-        #self.model.load(fn) #Known bug: github.com/opencv/opencv/issues/4969     
-        self.model = cv2.ml.SVM_load(fn)
-    def save(self, fn):
-        self.model.save(fn)
-
-# SVM class
-# https://stackoverflow.com/questions/8687885/python-opencv-svm-implementation
-class SVM(StatModel):
-    '''Wrapper for Support Vector Machine'''
-    def __init__(self, C = 1, gamma = 0.5):
-        self.model = cv2.ml.SVM_create()
-        self.model.setGamma(gamma)
-        self.model.setC(C)
-        #self.model.setKernel(cv2.ml.SVM_RBF)
-        self.model.setKernel(cv2.ml.SVM_LINEAR)
-        self.model.setType(cv2.ml.SVM_C_SVC)
-
-    def train(self, samples, responses):
-        self.model.train(samples, cv2.ml.ROW_SAMPLE, responses)
-
-    def predict(self, samples):
-        return self.model.predict(samples)[1].ravel()
-# For OpenCV 2.4
-#    def train(self, samples, responses, params):
-#        # setting algo params
-#        self.model.train(samples, responses, params=params)
-#        
-#    def predict(self, samples):
-#        return  np.float32([self.model.predict(s) for s in samples] )
-
 
 # read folder images paths and interpret labels from their names
 # function returns the list of image paths and corresponding labels
@@ -176,17 +144,26 @@ def train_model(framesPath, shuffleSeed=123):
     samples = preprocess_hog(list(st_frames_data))
     # check whether features are computed correctly
     
-    
     # Divide into training and testing sets
     train_n = int(0.7*len(samples))
     samples_train, samples_test = np.split(samples, [train_n])
     labels_train, labels_test = np.split(labels, [train_n])
         
+    ###########################################################################
+    # Reshape
+    samples_train = samples_train.reshape((samples_train.shape[0], samples_train.shape[1]))
+    samples_test = samples_test.reshape((samples_test.shape[0], samples_test.shape[1]))
     
     # Train a model    
-    model = SVM(C=2.67, gamma=5.383)   # C = 2.67, gamma = 5.383
-    model.train(samples_train, labels_train)    
+    #model.train(samples_train, labels_train)    
+    model = svm.SVC(kernel = 'linear')
     
+    # Train a Random Forest model
+    #model = RandomForestClassifier(max_depth=2, n_estimators=1000, random_state=1234)
+    #clf.fit(df_train.loc[:, df_train.columns != 'Y'], df_train.loc[:,'Y'])
+    model.fit(samples_train, labels_train)
+    
+    ###########################################################################
     # Evaluate the algorithm
     print "Evaluation on the test data:"
     evaluate_model(model, samples_test, labels_test)
@@ -199,13 +176,14 @@ if __name__=='__main__':
     # Train the model on 
     model1 = train_model(os.path.join(PROJECT_PREFIX, CAM1_FRAMES_DATA), 321)
     # save model to disk
-    #model1.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
+    joblib.dump(model1, os.path.join(PROJECT_PREFIX, 
+                                     "supporting_files/cam1_svm.pkl"))
     
     # Save the model to disk
-    #model2 = train_model(os.path.join(PROJECT_PREFIX, CAM2_FRAMES_DATA), 456)
-    #model2.save(os.path.join(PROJECT_PREFIX, "supporting_files/cam2_svm_model.dat"))
+    model2 = train_model(os.path.join(PROJECT_PREFIX, CAM2_FRAMES_DATA), 456)
+    joblib.dump(model2, os.path.join(PROJECT_PREFIX, 
+                                     "supporting_files/cam2_svm.pkl"))
     
     # Load an existing model
-    model1 = SVM()
-    model1.load(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm_model.dat"))
+    model1 = joblib.load(os.path.join(PROJECT_PREFIX, "supporting_files/cam1_svm.pkl"))
     print model1
