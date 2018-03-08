@@ -5,7 +5,7 @@ Created on Mon May 22 00:21:18 2017
 
 @author: Arpan
 
-Description: Shot extraction
+Description: Shot extraction predicting on multiple consecutive frames
 """
 
 import cv2
@@ -20,11 +20,11 @@ from sklearn.externals import joblib as jl
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-#DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
-#SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
+DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
+SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
 # Local Params
-DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
-SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
+#DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
+#SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
 CAM1_MODEL = "cam1_svm.pkl"
 CAM2_MODEL = "cam2_svm.pkl"
 HOG_FILE = "hog.xml"
@@ -34,9 +34,8 @@ CUTS_INFO = "ds25fps_cuts_hist_diffs_gray_rf.json"
 # Iterate over the videos using keys of the meta_info and extract shots for each
 # Inputs: meta_info : dictionary for the dataset meta info
 # cuts_dict : dictionary for the cut position prediction over entire dataset 
-# hog_obj : reference of cv2.HOGDescriptor(xmlFile)
 # Output: dictionary with list of tuples representing shots.
-def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
+def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict, n=5):
     # get the list of all videos in the dataset
     srcVideosList = meta_info.keys()
     # prepend pos of 1st frame if it doesn't exist in the cuts_list
@@ -57,14 +56,14 @@ def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
     #### Form the pandas Dataframe and parallelize over the files.
     nrows = nCuts_df.shape[0]
     batch = 50      # No. of videos in a batch.
-    njobs = 10      # No. of threads.
+    njobs = 18      # No. of threads.
     
     for i in range(nrows/batch):
         # vid_key is nCuts_df['keys'][i*batch+j]
         batch_segments = Parallel(n_jobs=njobs)(delayed(get_shots_from_video) \
                           (DATASET_PREFIX, nCuts_df['keys'][i*batch+j], \
                            cuts_all[nCuts_df['keys'][i*batch+j]], \
-                            meta_info[nCuts_df['keys'][i*batch+j]]) \
+                            meta_info[nCuts_df['keys'][i*batch+j]], n) \
                           for j in range(batch))
         
         # Writing the diffs in a serial manner
@@ -80,7 +79,7 @@ def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
         batch_segments = Parallel(n_jobs=njobs)(delayed(get_shots_from_video) \
                               (DATASET_PREFIX, nCuts_df['keys'][(nrows/batch)*batch+j], \
                                cuts_all[nCuts_df['keys'][(nrows/batch)*batch+j]], \
-                                meta_info[nCuts_df['keys'][(nrows/batch)*batch+j]]) \
+                                meta_info[nCuts_df['keys'][(nrows/batch)*batch+j]], n) \
                               for j in range(last_batch_size)) 
         # Writing the diffs in a serial manner
         for j in range(last_batch_size):
@@ -100,8 +99,10 @@ def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
 #       vinfo --> video meta info (dict with partition, dimension and nFrames)
 # Output: Returns a list of tuples (st_fr, end_fr) i.e., starting and ending frame
 # nos. of the shots.
-def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None):
+def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None, n=5):
     global hog, cam1_model, cam2_model
+    th_cam1 = 4
+    th_cam2 = 3
     cap = cv2.VideoCapture(os.path.join(srcVideoFolder,srcVideo))
     # if the VideoCapture object is not opened then return None
     if not cap.isOpened():
@@ -120,40 +121,45 @@ def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None):
     ######################
     # if cuts_len is empty then ##############
     ######################
-    # Method 1: Naive method
+    # Method 1: Naive method (with multiple consecutive frame prediction on cam models)
+    cam1_pred = np.zeros((n))
+    cam2_pred = np.zeros((n))
     
     for i, cut_pos in enumerate(vcuts_list):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, cut_pos)
-        #print "Pos : "+str(cut_pos)
-        ret, frame = cap.read()
-        #cv2.imshow("prev", frame)
-        #ret, frame = cap.read()
-        #cv2.imshow("Current", frame)
-        #cv2.waitKey(0)
+        # check for cuts that have <n length 
+        cam1_sum = 0
+        cam2_sum = 0
+        for j in range(n):
+            if j==0:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, cut_pos)
+            ret, frame = cap.read()
+            if ret:
+                hog_vec = hog.compute(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+                cam1_pred[j] = np.int32(cam1_model.predict
+                         (hog_vec.reshape((-1, hog_vec.shape[0]))))
+                cam2_pred[j] = np.int32(cam2_model.predict
+                         (hog_vec.reshape((-1, hog_vec.shape[0]))))
+            else:
+                break
+        # find the cam1_sum : sum over the predictions of cam1 model on n consecutive frames
+        for k in range(j+1):
+            cam1_sum += cam1_pred[k]
+            cam2_sum += cam2_pred[k]
         
-        if ret:
-            # convert to grayscale and get HOG feature col vector (79380,1)
-            hog_vec = hog.compute(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-            # reshape into a row vector to pass to predict()
-            cam1_pred = np.int32(cam1_model.predict(hog_vec.reshape((-1, hog_vec.shape[0]))))
-            cam2_pred = np.int32(cam2_model.predict(hog_vec.reshape((-1, hog_vec.shape[0]))))
-            if start_frame == -1:   # if shot has has not begun
-                if cam1_pred[0] == 1:  # +ve prediction
-                    start_frame = cut_pos
-                # else do not test for cam2, since shot has not begun
-            elif start_frame >= 0:  # if shot has begun
-                if cam2_pred[0] == 0:      # ball is within view, not switched to cam2
-                    end_frame = cut_pos-1
+        if start_frame == -1:
+            if cam1_sum >= th_cam1:
+                start_frame = cut_pos
+        elif start_frame >= 0:
+            if cam2_sum < th_cam2:  # ball within view
+                end_frame = cut_pos-1
+            else:
+                if (i+1) < ncuts:   # last cut
+                    end_frame = vcuts_list[i+1]-1
                 else:
-                    if (i+1) < ncuts: # switched to cam2
-                        end_frame = vcuts_list[i+1]-1
-                    else:
-                        end_frame = nFrames-1   # for last cut, ends at end of vid
-                vid_shots.append((start_frame, end_frame))  
-                start_frame = end_frame = -1
-            
+                    end_frame = nFrames-1 
+            vid_shots.append((start_frame, end_frame))
+            start_frame = end_frame = -1                    
 ###############################################################################
-
     cap.release()
     return vid_shots
 
@@ -166,6 +172,17 @@ def method2():
     return 
 
 ###############################################################################
+# function to remove the segments that have less than "epsilon" frames.
+def filter_segments(shots_dict, epsilon=10):
+    filtered_shots = {}
+    for k,v in shots_dict.iteritems():
+        vsegs = []
+        for segment in v:
+            if (segment[1]-segment[0] >= epsilon):
+                vsegs.append(segment)
+        filtered_shots[k] = vsegs
+    return filtered_shots
+            
 ###############################################################################
 
 if __name__=='__main__':
@@ -188,14 +205,23 @@ if __name__=='__main__':
     shots_dict = {}
     start = time.time()
     # iterate over all videos to extract HOG features 
-    # OR extract and mark one video at a time
-    extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict)    
+    # OR extract and mark one video at a time, n is the no of consecutive frames
+    # for which the cam1 model is applied
+    extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict, n=5)    
     end = time.time()
     print "Total execution time : "+str(end-start)
     
     # write shots_dict to disk
-    shots_filename = "cricShots_hdiffGray_multFrms.json"
+    shots_filename = "cricShots_hdiffGray_naive_multi_v1.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
         json.dump(shots_dict, fp)
     
 ###############################################################################    
+    # Filter shot segments (throw out <10 frame shots)
+    with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'r') as fp:
+        shots_dict = json.load(fp)
+        
+    filtered_shots = filter_segments(shots_dict, epsilon=60)
+    filt_shots_filename = "cricShots_hdiffGray_naive_multi_v1_filt.json"
+    with open(os.path.join(SUPPORTING_FILES_PATH, filt_shots_filename), 'w') as fp:
+        json.dump(filtered_shots, fp)
