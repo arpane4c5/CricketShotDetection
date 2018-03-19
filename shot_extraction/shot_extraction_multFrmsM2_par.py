@@ -5,7 +5,9 @@ Created on Mon May 22 00:21:18 2017
 
 @author: Arpan
 
-Description: Shot extraction predicting on multiple consecutive frames
+Description: Shot extraction predicting on multiple consecutive frames. 
+Method2: Use all frames HOG features for prediction, Use only cam1
+
 """
 
 import cv2
@@ -20,11 +22,11 @@ from sklearn.externals import joblib as jl
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-#DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
-#SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
+DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
+SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
 # Local Params
-DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
-SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
+#DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
+#SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
 CAM1_MODEL = "cam1_svm.pkl"
 CAM2_MODEL = "cam2_svm.pkl"
 HOG_FILE = "hog.xml"
@@ -102,7 +104,7 @@ def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict, n=5):
 def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None, n=5):
     global hog, cam1_model, cam2_model
     th_cam1 = 4
-    th_cam2 = 3
+    th_cam2 = 2
     cap = cv2.VideoCapture(os.path.join(srcVideoFolder,srcVideo))
     # if the VideoCapture object is not opened then return None
     if not cap.isOpened():
@@ -118,6 +120,7 @@ def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None, 
     end_frame = -1
     
     ncuts = len(vcuts_list)
+    #ncuts = nFrames     # for prediction on all the frames
     ######################
     # if cuts_len is empty then ##############
     ######################
@@ -152,13 +155,18 @@ def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None, 
         elif start_frame >= 0:
             if cam2_sum < th_cam2:  # ball within view
                 end_frame = cut_pos-1
+                vid_shots.append((start_frame, end_frame))
+                start_frame = end_frame = -1
+                if cam1_sum >= th_cam1:
+                    start_frame = cut_pos
             else:
                 if (i+1) < ncuts:   # last cut
                     end_frame = vcuts_list[i+1]-1
                 else:
                     end_frame = nFrames-1 
-            vid_shots.append((start_frame, end_frame))
-            start_frame = end_frame = -1                    
+                vid_shots.append((start_frame, end_frame))
+                start_frame = end_frame = -1
+            
 ###############################################################################
     cap.release()
     return vid_shots
@@ -212,7 +220,7 @@ if __name__=='__main__':
     print "Total execution time : "+str(end-start)
 #    
 #    # write shots_dict to disk
-    shots_filename = "cricShots_hdiffGray_naive_multi_v1.json"
+    shots_filename = "cricShots_hdiffGray_naive_multi_v3.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
         json.dump(shots_dict, fp)
     
@@ -222,6 +230,6 @@ if __name__=='__main__':
         shots_dict = json.load(fp)
         
     filtered_shots = filter_segments(shots_dict, epsilon=60)
-    filt_shots_filename = "cricShots_hdiffGray_naive_multi_v1_filt.json"
+    filt_shots_filename = "cricShots_hdiffGray_naive_multi_v2_filt.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, filt_shots_filename), 'w') as fp:
         json.dump(filtered_shots, fp)

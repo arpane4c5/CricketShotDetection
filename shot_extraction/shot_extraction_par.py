@@ -57,7 +57,7 @@ def extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict):
     #### Form the pandas Dataframe and parallelize over the files.
     nrows = nCuts_df.shape[0]
     batch = 50      # No. of videos in a batch.
-    njobs = 10      # No. of threads.
+    njobs = 18      # No. of threads.
     
     for i in range(nrows/batch):
         # vid_key is nCuts_df['keys'][i*batch+j]
@@ -147,13 +147,17 @@ def get_shots_from_video(srcVideoFolder, srcVideo, vcuts_list=None, vinfo=None):
             elif start_frame >= 0:  # if shot has begun
                 if cam2_pred[0] == 0:      # ball is within view, not switched to cam2
                     end_frame = cut_pos-1
+                    vid_shots.append((start_frame, end_frame))
+                    start_frame = end_frame = -1
+                    if cam1_pred[0] == 1:
+                        start_frame = cut_pos
                 else:
                     if (i+1) < ncuts: # switched to cam2
                         end_frame = vcuts_list[i+1]-1
                     else:
                         end_frame = nFrames-1   # for last cut, ends at end of vid
-                vid_shots.append((start_frame, end_frame))  
-                start_frame = end_frame = -1
+                    vid_shots.append((start_frame, end_frame))  
+                    start_frame = end_frame = -1
             
 ###############################################################################
 
@@ -169,6 +173,16 @@ def method2():
     return 
 
 ###############################################################################
+# function to remove the segments that have less than "epsilon" frames.
+def filter_segments(shots_dict, epsilon=10):
+    filtered_shots = {}
+    for k,v in shots_dict.iteritems():
+        vsegs = []
+        for segment in v:
+            if (segment[1]-segment[0] >= epsilon):
+                vsegs.append(segment)
+        filtered_shots[k] = vsegs
+    return filtered_shots
 ###############################################################################
 
 if __name__=='__main__':
@@ -201,8 +215,12 @@ if __name__=='__main__':
     with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
         json.dump(shots_dict, fp)
     
-    
 ###############################################################################    
-    #zoom_detect(os.path.join(srcVideoFolder, srcVideosList[0]))
-    #check_sift("/home/hadoop/VisionWorkspace/ActivityProjPy/frames_col/f99.jpg", \
-    #       "/home/hadoop/VisionWorkspace/ActivityProjPy/frames_col/f112.jpg")
+    # Filter shot segments (throw out <10 frame shots)
+    #with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'r') as fp:
+    #    shots_dict = json.load(fp)
+        
+    filtered_shots = filter_segments(shots_dict, epsilon=60)
+    filt_shots_filename = "cricShots_hdiffGray_naive_v1_filt.json"
+    with open(os.path.join(SUPPORTING_FILES_PATH, filt_shots_filename), 'w') as fp:
+        json.dump(filtered_shots, fp)
