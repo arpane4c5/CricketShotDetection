@@ -112,7 +112,7 @@ def waitTillEscPressed():
 
 
 if __name__=='__main__':
-    shotsFile = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/cricShots_hdiffGray_naive_multi_v1_filt.json"
+    shotsFile = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/segment_filt/cricShots_hdiffGray_naive_v1_filt60.json"
     view_segments(shotsFile, stop=4)
     
     

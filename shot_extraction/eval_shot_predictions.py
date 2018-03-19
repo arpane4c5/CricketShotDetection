@@ -21,7 +21,8 @@ import os
 # Local Params
 DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
 SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
-GT_SHOTS = "dataset_25_fps_val_set_labels/corrected_shots"
+#GT_SHOTS = "dataset_25_fps_val_set_labels/corrected_shots"
+GT_SHOTS = "dataset_25_fps_test_set_labels"
 DATASET_INFO = "dataset_25_fps_meta_info.json"
 
 # Take the predictions json file and iterate over the ground truth kept inside the folder
@@ -110,7 +111,7 @@ def get_iou(gt_shot, test_shot):
 
 if __name__ == '__main__':
     # Take 
-    pred_shots_file = "cricShots_hdiffGray_naive_multi_v1.json"
+    pred_shots_file = "segment_filt/cricShots_hdiffGray_naive_v1_filt60.json"
     with open(os.path.join(SUPPORTING_FILES_PATH, pred_shots_file), 'r') as fp:
         shots_dict = json.load(fp)
         

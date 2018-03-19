@@ -20,11 +20,11 @@ from sklearn.externals import joblib as jl
 
 # Server Params
 # This path contains 4 subfolders : youtube, hotstar_converted, ipl2017, cpl2015
-DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
-SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
+#DATASET_PREFIX = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps"  
+#SUPPORTING_FILES_PATH = "/home/arpan/VisionWorkspace/shot_detection/supporting_files"
 # Local Params
-#DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
-#SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
+DATASET_PREFIX = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"  
+SUPPORTING_FILES_PATH = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files"
 CAM1_MODEL = "cam1_svm.pkl"
 CAM2_MODEL = "cam2_svm.pkl"
 HOG_FILE = "hog.xml"
@@ -188,39 +188,40 @@ def filter_segments(shots_dict, epsilon=10):
 if __name__=='__main__':
     global hog, cam1_model, cam2_model
     # read the meta info from meta_info file
-    with open(os.path.join(SUPPORTING_FILES_PATH, DATASET_INFO), "r") as fp:
-        meta_info = json.load(fp)
-    
-    # create the cv2.HOGDescriptor object to be applied to grayscale images
-    hog = cv2.HOGDescriptor(os.path.join(SUPPORTING_FILES_PATH, HOG_FILE))
-    
-    # load the pretrained cam1 and cam2 svm models
-    cam1_model = jl.load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
-    cam2_model = jl.load(os.path.join(SUPPORTING_FILES_PATH, CAM2_MODEL))
-    
-    # read the cut predictions json file.
-    with open(os.path.join(SUPPORTING_FILES_PATH, CUTS_INFO), 'r') as fp:
-        cuts_dict = json.load(fp)
-    
-    shots_dict = {}
-    start = time.time()
-    # iterate over all videos to extract HOG features 
-    # OR extract and mark one video at a time
-    extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict)    
-    end = time.time()
-    print "Total execution time : "+str(end-start)
-    
-    # write shots_dict to disk
+#    with open(os.path.join(SUPPORTING_FILES_PATH, DATASET_INFO), "r") as fp:
+#        meta_info = json.load(fp)
+#    
+#    # create the cv2.HOGDescriptor object to be applied to grayscale images
+#    hog = cv2.HOGDescriptor(os.path.join(SUPPORTING_FILES_PATH, HOG_FILE))
+#    
+#    # load the pretrained cam1 and cam2 svm models
+#    cam1_model = jl.load(os.path.join(SUPPORTING_FILES_PATH, CAM1_MODEL))
+#    cam2_model = jl.load(os.path.join(SUPPORTING_FILES_PATH, CAM2_MODEL))
+#    
+#    # read the cut predictions json file.
+#    with open(os.path.join(SUPPORTING_FILES_PATH, CUTS_INFO), 'r') as fp:
+#        cuts_dict = json.load(fp)
+#    
+#    shots_dict = {}
+#    start = time.time()
+#    # iterate over all videos to extract HOG features 
+#    # OR extract and mark one video at a time
+#    extract_shots_from_all_videos(meta_info, cuts_dict, shots_dict)    
+#    end = time.time()
+#    print "Total execution time : "+str(end-start)
+#    
+#    # write shots_dict to disk
     shots_filename = "cricShots_hdiffGray_naive_v1.json"
-    with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
-        json.dump(shots_dict, fp)
+#    with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'w') as fp:
+#        json.dump(shots_dict, fp)
     
 ###############################################################################    
     # Filter shot segments (throw out <10 frame shots)
-    #with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'r') as fp:
-    #    shots_dict = json.load(fp)
-        
-    filtered_shots = filter_segments(shots_dict, epsilon=60)
-    filt_shots_filename = "cricShots_hdiffGray_naive_v1_filt.json"
-    with open(os.path.join(SUPPORTING_FILES_PATH, filt_shots_filename), 'w') as fp:
-        json.dump(filtered_shots, fp)
+    with open(os.path.join(SUPPORTING_FILES_PATH, shots_filename), 'r') as fp:
+        shots_dict = json.load(fp)
+    
+    for i in range(0,101,10):
+        filtered_shots = filter_segments(shots_dict, epsilon=i)
+        filt_shots_filename = "segment_filt/cricShots_hdiffGray_naive_v1_filt"+str(i)+".json"
+        with open(os.path.join(SUPPORTING_FILES_PATH, filt_shots_filename), 'w') as fp:
+            json.dump(filtered_shots, fp)
