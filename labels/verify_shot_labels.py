@@ -127,8 +127,8 @@ def waitTillEscPressed():
 
 
 if __name__=='__main__':
-    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps_test_set"
-    srcLabelsFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_test_set_labels/labels_shots"
+    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/ToBeDeleted"
+    srcLabelsFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_val_set_labels/corrected_shots"
     verify_labels(srcVideoFolder, srcLabelsFolder)
     
     
