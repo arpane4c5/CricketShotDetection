@@ -1,0 +1,22 @@
+Analysing the incorrect and missed predictions of the cricket strokes:
+Using Script: post_prediction_analysis/write_wrong_segments.py
+
+Ground Truth: Validation Set videos ("/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_val_set_labels/corrected_shots")
+Predictions: "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/segment_filt/cricShots_hdiffGray_naive_v1_filt60.json"
+
+Using TIoU Threshold : 0 (all segments having TIoU<=threshold are written to files)
+Accuracy (Weighted Mean TIoU: 0.461209951838)
+GT segments that are missed by predictions (with tiou <= thresh)
+#Segments = 475 / 1157 (Total GT segments in Validation set of 32 videos)
+
+Predicted segments that are incorrect (tiou <= thresh i.e., no overlap with GT)
+#Segments = 113 / 577 (Total predictions for the val set videos, 116 are wrong)
+
+Wrong Predictions:
+1. Mainly CAM1 shots that are not cricket shots (eg. running between wickets)
+2. Zoomed-in replays taken from CAM1 position
+3. 
+
+Missed GT segments:
+1. The main reason why accuracy is less: Many valid segments are missed (coverage or recall is less).
+
