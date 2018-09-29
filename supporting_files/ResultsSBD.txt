@@ -134,3 +134,153 @@ Total segments : 1155
 Total_tiou (all vids) : 431.505440976
 Weighted Averaged TIoU  : 0.373597784395
 Time for finding shot segments : 6.571964305555555 hrs
+
+
+____________________________________________________________
+____________________________________________________________
+
+Corrected Code
+Results for TIoU for different values of filtering parameter:
+Removing segments < epsilon #Frames in the cricket shot
+On the validation set sample videos
+File: cricShots_hdiffGray_naivev1_filt.json (currently for n=60)
+applying filtering to cricShots_hdiffGray_naive_v1.json
+
+Without filtering:
+Total files traversed : 32
+Total segments : 1155
+Total_tiou (all vids) : 447.553349905
+Weighted Averaged TIoU  : 0.38749207784
+
+For files in segment_filt/crick...._filt0.json etc
+epsilon: 0
+Total files traversed : 32
+Total segments : 1155
+Total_tiou (all vids) : 447.553349905
+Weighted Averaged TIoU  : 0.38749207784
+____________________________________________________________
+
+epsilon: 10
+Total_tiou (all vids) : 492.243046484
+Weighted Averaged TIoU  : 0.426184455831
+____________________________________________________________
+
+epsilon: 20
+Total_tiou (all vids) : 494.339259319
+Weighted Averaged TIoU  : 0.427999358718
+____________________________________________________________
+
+epsilon: 30
+Total_tiou (all vids) : 502.700834822
+Weighted Averaged TIoU  : 0.435238818028
+____________________________________________________________
+
+epsilon: 40
+Total_tiou (all vids) : 509.337168293
+Weighted Averaged TIoU  : 0.440984561293
+____________________________________________________________
+
+epsilon: 50
+Total_tiou (all vids) : 521.377093501
+Weighted Averaged TIoU  : 0.451408738962
+____________________________________________________________
+
+For files in segment_filt/crick...._filt60.json
+epsilon: 60 (Set This values)
+Total_tiou (all vids) : 529.900098859
+Weighted Averaged TIoU  : 0.45878796438
+
+############################################################
+Result on a sample of test set videos
+Total files traversed : 30
+Total segments : 1169
+Total_tiou (all vids) : 595.874906169
+Weighted Averaged TIoU  : 0.509730458657
+############################################################
+____________________________________________________________
+
+epsilon: 63
+
+____________________________________________________________
+
+epsilon: 65
+
+____________________________________________________________
+
+epsilon: 67
+____________________________________________________________
+
+epsilon: 70
+Total_tiou (all vids) : 529.141833037
+Weighted Averaged TIoU  : 0.458131457175
+____________________________________________________________
+
+epsilon: 80
+Total_tiou (all vids) : 511.957506887
+Weighted Averaged TIoU  : 0.443253252716
+____________________________________________________________
+
+epsilon: 90
+Total_tiou (all vids) : 497.615713036
+Weighted Averaged TIoU  : 0.430836115182
+____________________________________________________________
+
+epsilon: 100
+Total_tiou (all vids) : 491.21263239
+Weighted Averaged TIoU  : 0.425292322416
+____________________________________________________________
+
+Results for applying cam predictions to N consecutive frames
+with filtering after predictions for epsilon=60
+N = 5 (make predictions for 5 consecutive frames at CUT position)
+th_cam1 = 4 (if 4 predictions out of N(or less in case of last frames) are +ve)
+th_cam2 = 3 (if <3 predictions out of N(or less) are -ve the do not consider)
+Time for execution: 36788.362479 sec
+
+Total files traversed : 32
+Total segments : 1155
+Total_tiou (all vids) : 450.101841612
+Weighted Averaged TIoU  : 0.389698564167
+
+Filtering epsilon=70
+Total_tiou (all vids) : 457.656807577
+Weighted Averaged TIoU  : 0.39623966024
+
+Filtering epsilon=80
+Total_tiou (all vids) : 457.417579045
+Weighted Averaged TIoU  : 0.39603253597
+
+epsilon=0
+Total_tiou (all vids) : 355.5161363
+Weighted Averaged TIoU  : 0.307806178615
+
+____________________________________________________________
+
+Corrected Code
+Results for applying cam predictions to N consecutive frames
+with filtering after predictions for epsilon=60
+N = 5 (make predictions for 5 consecutive frames at CUT position)
+th_cam1 = 4 (if 4 predictions out of N(or less in case of last frames) are +ve)
+th_cam2 = 2 (if <2 predictions out of N(or less) are -ve the do not consider)
+Time for execution: 36879.191498 sec
+
+epsilon=60
+Total_tiou (all vids) : 493.907611401
+Weighted Averaged TIoU  : 0.427625637577
+
+epsilon=0
+Total_tiou (all vids) : 398.328222732
+Weighted Averaged TIoU  : 0.344872920114
+
+____________________________________________________________
+
+Corrected Code: shot_extraction_par.py 
+Execution Time: 20730.7191651 sec
+
+epsilon=0 (cricShots_hdiffGray_naive_v1.json)
+Total_tiou (all vids) : 447.553349905
+Weighted Averaged TIoU  : 0.38749207784
+
+epsilon=60 (cricShots_hdiffGray_naive_v1_filt.json)
+Total_tiou (all vids) : 529.900098859
+Weighted Averaged TIoU  : 0.45878796438

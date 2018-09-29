@@ -13,7 +13,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
- 
+from scipy import fftpack, ndimage
       
 #    while True:
 #        # Read a new frame
@@ -162,7 +162,12 @@ def track_in_video(srcVideo):
             img_sift=cv2.drawKeypoints(frame,kp,frame,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)           
             cv2.imshow("SIFT", img_sift)
             
-
+###############################################################################            
+            ft2 = fftpack.fft2(curr_frame)
+            print ft2
+            print ft2.shape
+            cv2.imshow("FFT", abs(ft2))
+            #plt.show()
 ###############################################################################            
             
             #cv2.imshow('Cropped', frame[50:310,100:540])

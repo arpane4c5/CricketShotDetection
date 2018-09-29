@@ -7,3 +7,4 @@ supporting_files/cam1_svm.pkl
 supporting_files/cam2_svm.pkl
 supporting_files/dataset_25_fps_val_set_labels/
 supporting_files/dataset_25_fps_test_set_labels/
+features/vis_test_hist_diffs/
