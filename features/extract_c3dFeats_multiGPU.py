@@ -7,8 +7,12 @@ Created on Sat Sept 8 01:34:25 2018
 to disk. Use Parallel and multi-GPU for parallel extraction from both the GPUs.
 Feature : C3D features extracted from the videos, taken pretrained model (on Sports-1M)
 and extracting fc7 layer feature vectors. (4096 size)
+
+To Execute: In two terminals (for 2 GPU cards, run)
+$ python extract_c3d
 """
 
+import argparse
 import torch
 import os
 import numpy as np
@@ -17,34 +21,8 @@ import time
 import pandas as pd
 import torch.nn as nn
 from torch.autograd import Variable
-from joblib import Parallel, delayed
 
-def extract_c3d_all(model, srcFolderPath, destFolderPath, njobs=1, batch=10, \
-                    depth=16, stop='all'):
-    """
-    Function to extract the features from a list of videos
-    
-    Parameters:
-    ------
-    model: C3D
-        C3D model loaded with pretrained weights (on Sports-1M)
-    srcFolderPath: str
-        path to folder which contains the videos
-    destFolderPath: str
-        path to store the optical flow values in .bin files
-    onGPU: boolean
-        True enables a serial extraction by sending model and data to GPU,
-        False enables a parallel extraction on the different CPU cores.
-    depth: int
-        No. of frames (min 16) taken from video and fed to C3D at a time.
-    stop: str
-        to traversel 'stop' no of files in each subdirectory.
-    
-    Returns: 
-    ------
-    traversed: int
-        no of videos traversed successfully
-    """    
+def create_meta_df(srcFolderPath, destFolderPath, stop='all'):
     # iterate over the subfolders in srcFolderPath and extract for each video 
     sfp_lst = os.listdir(srcFolderPath)
     infiles, outfiles, nFrames = [], [], []
@@ -82,47 +60,55 @@ def extract_c3d_all(model, srcFolderPath, destFolderPath, njobs=1, batch=10, \
     filenames_df = pd.DataFrame({"infiles":infiles, "outfiles": outfiles, "nframes": nFrames})
     filenames_df = filenames_df.sort_values(["nframes"], ascending=[True])
     filenames_df = filenames_df.reset_index(drop=True)
+    
+    return filenames_df
+    
+    
+def extract_c3d_all(filenames_df, model, depth=16, gpu_id=0):
+    """
+    Function to extract the features from a list of videos
+    
+    Parameters:
+    ------
+    model: C3D
+        C3D model loaded with pretrained weights (on Sports-1M)
+    srcFolderPath: str
+        path to folder which contains the videos
+    destFolderPath: str
+        path to store the optical flow values in .bin files
+    onGPU: boolean
+        True enables a serial extraction by sending model and data to GPU,
+        False enables a parallel extraction on the different CPU cores.
+    depth: int
+        No. of frames (min 16) taken from video and fed to C3D at a time.
+    stop: str
+        to traversel 'stop' no of files in each subdirectory.
+    
+    Returns: 
+    ------
+    traversed: int
+        no of videos traversed successfully
+    """    
     nrows = filenames_df.shape[0]
     
-    filenames_df.to_pickle("dataset_files_df.pkl")
-    
-    #filenames_df = pd.read_pickle("dataset_files_df.pkl")
-    
     ###########################################################################
-    # consider batchsize = 2
-    mod = [model.cuda(0), model.cuda(1)]
-    
-    #feat = getC3DFrameFeats(model, filenames_df['infiles'][0], onGPU, depth)
-    # Parallel version (For CPU based extraction)
-    for i in range(nrows/batch):
-        
-        batch_diffs = Parallel(n_jobs=njobs)(delayed(getC3DFrameFeats) \
-                    (mod[j%2], filenames_df['infiles'][i*batch+j], depth, j) \
-                    for j in range(batch))
-        print "i = "+str(i)
-        # Writing the diffs in a serial manner
-        for j in range(batch):
-            if batch_diffs[j] is not None:
-                np.save(filenames_df['outfiles'][i*batch+j], batch_diffs[j])
-                print "Written "+str(i*batch+j+1)+" : "+ \
-                            filenames_df['outfiles'][i*batch+j]
+
+    # Serial Implementation (For GPU based extraction)
+    for i in range(nrows):
+        st = time.time()
+        feat = getC3DFrameFeats(model, filenames_df['infiles'][i], True, gpu_id, depth, i)
+        # save the feature to disk
+        if feat is not None:
+            np.save(filenames_df['outfiles'][i], feat)
+            print "Written "+str(i)+" : "+filenames_df['outfiles'][i]
             
-    # For last batch which may not be complete, extract serially
-    last_batch_size = nrows - ((nrows/batch)*batch)
-    if last_batch_size > 0:
-        batch_diffs = Parallel(n_jobs=njobs)(delayed(getC3DFrameFeats) \
-                    (mod[j%2], filenames_df['infiles'][(nrows/batch)*batch+j], depth, j) \
-                    for j in range(last_batch_size)) 
-        # Writing the diffs in a serial manner
-        for j in range(last_batch_size):
-            if batch_diffs[j] is not None:
-                np.save(filenames_df['outfiles'][(nrows/batch)*batch+j], batch_diffs[j])
-                print "Written "+str((nrows/batch)*batch+j+1)+" : "+ \
-                            filenames_df['outfiles'][(nrows/batch)*batch+j]
+        e = time.time()
+        print "Execution Time : "+str(e-st)
+    
     
     ###########################################################################
-#    print len(batch_diffs)
-    return traversed
+    
+    #return traversed
 
 
 def getTotalFramesVid(srcVideoPath):
@@ -149,7 +135,7 @@ def getTotalFramesVid(srcVideoPath):
     return tot_frames    
 
 
-def getC3DFrameFeats(model, srcVideoPath, depth, i):
+def getC3DFrameFeats(model, srcVideoPath, onGPU, gpu_id, depth, i):
     """
     Function to read all the frames of the video and get sequence of features
     by passing 'depth' frames to C3D model, one batch at a time. 
@@ -208,14 +194,14 @@ def getC3DFrameFeats(model, srcVideoPath, depth, i):
                 X = np.stack(X)
                 X = np.float32(X)
                 X = torch.from_numpy(X)
-                
-                X = X.cuda(i%2)
+                if onGPU:
+                    X = X.cuda(gpu_id)
             else:   # sliding the window (taking 15 last frames and append next)
                     # Adding a new dimension and concat on first axis
                 curr_frame = np.float32(curr_frame)
                 curr_frame = torch.from_numpy(curr_frame)
-                
-                curr_frame = curr_frame.cuda(i%2)
+                if onGPU:
+                    curr_frame = curr_frame.cuda(gpu_id)
                 #X = np.concatenate((X[1:], curr_frame[None, :]), axis=0)
                 X = torch.cat([X[1:], curr_frame[None, :]])
         
@@ -239,8 +225,8 @@ def getC3DFrameFeats(model, srcVideoPath, depth, i):
             features_current_file.append(prediction)
             
         frameCount +=1
-        
-        #print "Video : {} :: Frame : {} / {}".format((i+1), frameCount, totalFrames)
+        if onGPU and (frameCount%100)==0:
+            print "Video : {} :: Frame : {} / {}".format((i+1), frameCount, totalFrames)
 
     # When everything done, release the capture
     cap.release()
@@ -248,51 +234,58 @@ def getC3DFrameFeats(model, srcVideoPath, depth, i):
     return np.array(features_current_file)      # convert to (N-depth+1) x 1 x 4096
 
 
-if __name__=='__main__':
-
-    winSize = 16   
-    batch = 2  # No. of videos in a single batch
-    njobs = 2   # No. of threads        
     
-    # The srcPath should have subfolders that contain the videos.
-    weights_path = "/home/hadoop/VisionWorkspace/Cricket/localization_rnn/c3d.pickle"
-    srcPath = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps"
-    destPath = "/home/hadoop/VisionWorkspace/Cricket/scripts/extracted_features/c3d_feats_"+str(winSize)
-    if not os.path.exists(srcPath):
-        srcPath = "/home/arpan/DATA_Drive2/Cricket/dataset_25_fps"
-        destPath = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps_feats/c3d_feats_"+str(winSize)
-        weights_path = "/home/arpan/VisionWorkspace/localization_rnn/c3d.pickle"
-        
+def main(srcPath, destPath, wts, winsize=16, gpu_id=0, start=0, nVids=10):        
+    # verify the paths and files, whether they exist or not.
+    
     # create a model 
     import model_c3d as c3d
-    
     model = c3d.C3D()
     
     ###########################################################################
-    
     # get network pretrained model
-    model.load_state_dict(torch.load(weights_path))
+    model.load_state_dict(torch.load(wts))
     
-    #model.cuda(0)
-    #model.cuda(1)
+    model = model.cuda(gpu_id)
         
     model.eval()
     
-    print "Using the GPU : "+str(True)
-    start = time.time()
-    nfiles = extract_c3d_all(model, srcPath, destPath, njobs=njobs, \
-                             batch=batch, depth=winSize, stop=2)
-    end = time.time()
-    print "Total no. of files traversed : "+str(nfiles)
-    print "Total execution time : "+str(end-start)
+    print "Using the GPU : {} :: start / end : {} / {} "\
+                           .format(gpu_id, start, (start+nVids))
+    filenames_df = create_meta_df(srcPath, destPath, stop='all')
+    filenames_df = filenames_df.iloc[start:(start+nVids), :].reset_index(drop=True)
+
+    filenames_df.to_pickle("dataset_files_df.pkl")
     
+    #filenames_df = pd.read_pickle("dataset_files_df.pkl")
+    st_time = time.time()
+    nfiles = extract_c3d_all(filenames_df, model, winsize, gpu_id)
+    end_time = time.time()
+    print "Total no. of files traversed : "+str(nfiles)
+    print "Total execution time : "+str(end_time-st_time)
+    
+    #print(srcPath, destPath, wts)
+    #print(winsize, gpu_id, start, nVids)
+    #print filenames_df
     ###########################################################################
-    # Results:
-    # Data kept on the GPU and the frames are sent to the GPU and appended by 
-    # sliding the window of size 16 on the GPU. The model is saved on the GPU
-    # initially and a forward pass through the network gives the FC7 feature vectors.
-    #
-    # On GPU: Serial Execution time(26 vids) : 14497.0 sec
-    #
-    # Parallel Implementation: 5 cores 5 batch size
-    # Execution time (26 vids) : 43924.76 sec
+    
+
+if __name__=='__main__':
+    description = "Script for downloading c3d features from dataset videos"
+    p = argparse.ArgumentParser(description=description)
+    #p.add_argument('input_df', type=str,
+    #               help=('input .pkl file containing the following format: '
+    #                     'input_filepath, output_filepath, #frames'))
+    p.add_argument('srcPath', type=str,
+                   help=('input directory containing videos subfolders with videos'))
+    p.add_argument('destPath', type=str,
+                   help=('output directory for c3d feats'))
+    p.add_argument('wts', type=str,
+                   help=('pretrained model weights (.pkl file)'))
+    
+    p.add_argument('-w', '--winsize', type=int, default=16)
+    p.add_argument('-g', '--gpu-id', type=int, default=0)
+    p.add_argument('-s', '--start', type=int, default=0)
+    p.add_argument('-n', '--nVids', type=int, default=10)
+    main(**vars(p.parse_args()))
+    
