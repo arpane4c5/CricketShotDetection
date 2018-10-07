@@ -23,6 +23,27 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 def create_meta_df(srcFolderPath, destFolderPath, stop='all'):
+    """
+    Function to iterate over all the files of the dataset, make a dataframe with
+    source path, destination path of the feature, and nFrames in the video. 
+    Sort the rows with nFrames and return the dataframe.
+    
+    Parameters:
+    ------
+    srcFolderPath: str
+        path to the dataset, contains subfolders with video files in them.
+    destFolderPath: str
+        path for the features, creates the subfolder structure similar to the input.
+    stop: str or int
+        if int then stop after that many videos per subfolder, 'all' for complete
+        dataset.
+        
+    Return:
+    ------
+    filenames_df: pd.DataFrame
+        contains the input video path, output feature path and nFrames in video.
+        Sorted in increasing order of the nFrames.
+    """
     # iterate over the subfolders in srcFolderPath and extract for each video 
     sfp_lst = os.listdir(srcFolderPath)
     infiles, outfiles, nFrames = [], [], []
@@ -100,15 +121,13 @@ def extract_c3d_all(filenames_df, model, depth=16, gpu_id=0):
         # save the feature to disk
         if feat is not None:
             np.save(filenames_df['outfiles'][i], feat)
-            print "Written "+str(i)+" : "+filenames_df['outfiles'][i]
+            print "Written "+str(i+1)+" : "+filenames_df['outfiles'][i]
             
         e = time.time()
         print "Execution Time : "+str(e-st)
     
-    
     ###########################################################################
-    
-    #return traversed
+    return nrows
 
 
 def getTotalFramesVid(srcVideoPath):
@@ -168,7 +187,6 @@ def getC3DFrameFeats(model, srcVideoPath, onGPU, gpu_id, depth, i):
     totalFrames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     frameCount = 0
     features_current_file = []
-    
     #ret, prev_frame = cap.read()
     assert cap.isOpened(), "Capture object does not return a frame!"
     #prev_frame = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
@@ -225,7 +243,7 @@ def getC3DFrameFeats(model, srcVideoPath, onGPU, gpu_id, depth, i):
             features_current_file.append(prediction)
             
         frameCount +=1
-        if onGPU and (frameCount%100)==0:
+        if onGPU and (frameCount%1000)==0:
             print "Video : {} :: Frame : {} / {}".format((i+1), frameCount, totalFrames)
 
     # When everything done, release the capture
@@ -234,8 +252,8 @@ def getC3DFrameFeats(model, srcVideoPath, onGPU, gpu_id, depth, i):
     return np.array(features_current_file)      # convert to (N-depth+1) x 1 x 4096
 
 
-    
 def main(srcPath, destPath, wts, winsize=16, gpu_id=0, start=0, nVids=10):        
+    
     # verify the paths and files, whether they exist or not.
     
     # create a model 
@@ -253,9 +271,9 @@ def main(srcPath, destPath, wts, winsize=16, gpu_id=0, start=0, nVids=10):
     print "Using the GPU : {} :: start / end : {} / {} "\
                            .format(gpu_id, start, (start+nVids))
     filenames_df = create_meta_df(srcPath, destPath, stop='all')
-    filenames_df = filenames_df.iloc[start:(start+nVids), :].reset_index(drop=True)
-
     filenames_df.to_pickle("dataset_files_df.pkl")
+    
+    filenames_df = filenames_df.iloc[start:(start+nVids), :].reset_index(drop=True)
     
     #filenames_df = pd.read_pickle("dataset_files_df.pkl")
     st_time = time.time()
@@ -273,9 +291,7 @@ def main(srcPath, destPath, wts, winsize=16, gpu_id=0, start=0, nVids=10):
 if __name__=='__main__':
     description = "Script for downloading c3d features from dataset videos"
     p = argparse.ArgumentParser(description=description)
-    #p.add_argument('input_df', type=str,
-    #               help=('input .pkl file containing the following format: '
-    #                     'input_filepath, output_filepath, #frames'))
+    
     p.add_argument('srcPath', type=str,
                    help=('input directory containing videos subfolders with videos'))
     p.add_argument('destPath', type=str,
