@@ -270,12 +270,14 @@ def main(srcPath, destPath, wts, winsize=16, gpu_id=0, start=0, nVids=10):
     
     print "Using the GPU : {} :: start / end : {} / {} "\
                            .format(gpu_id, start, (start+nVids))
+    
     filenames_df = create_meta_df(srcPath, destPath, stop='all')
     filenames_df.to_pickle("dataset_files_df.pkl")
     
+    #filenames_df = pd.read_pickle("dataset_files_df.pkl")
+    
     filenames_df = filenames_df.iloc[start:(start+nVids), :].reset_index(drop=True)
     
-    #filenames_df = pd.read_pickle("dataset_files_df.pkl")
     st_time = time.time()
     nfiles = extract_c3d_all(filenames_df, model, winsize, gpu_id)
     end_time = time.time()
