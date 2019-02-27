@@ -13,6 +13,8 @@ $ python extract_c3dFeats_multiGPU_valSet.py ~/DATA_Drive2/Cricket/dataset_25_fp
 ~/VisionWorkspace/shot_detection/supporting_files/dataset_25_fps_val_set_labels/corrected_shots
 ~/DATA_Drive/Cricket/dataset_25_fps_feats/c3d_feats 
 ~/VisionWorkspace/localization_rnn/c3d.pickle -w 16 -g 1 
+
+~/VisionWorkspace/localization_rnn/log/c3d_finetune_conv5b_FC678_ep30_w16_SGD.pt
 """
 
 import argparse
@@ -275,7 +277,8 @@ def main(srcPath, labelsPath, destPath, wts, winsize=16, gpu_id=0):
     # create a model 
     import model_c3d as c3d
     model = c3d.C3D()
-    
+    model.fc8 = nn.Linear(4096, 2)
+
     ###########################################################################
     # get network pretrained model
     model.load_state_dict(torch.load(wts))

@@ -11,9 +11,19 @@ import cv2
 import os
 import json
 
-# function to iterate over the videos in the subfolders and create shot boundary
-# labels for them.
 def create_labels(srcFolderPath, destFolderPath, stop='all'):
+    """
+    Function to iterate over the videos in the subfolders and create shot boundary
+    labels for them.
+    Parameters:
+    --------    
+    srcFolderPath: str
+        folder contain source videos (subfolders for main dataset)
+    destFolderPath: str
+        folder where the labels are to be saved
+    
+    """
+    
     # iterate over the subfolders in srcFolderPath and extract for each video 
     sfp_lst = sorted(os.listdir(srcFolderPath))
     
@@ -42,18 +52,18 @@ def create_labels(srcFolderPath, destFolderPath, stop='all'):
                         with open(destFile, "w") as fp:
                             json.dump({sf+'/'+vid : labels}, fp)
                         traversed += 1
-                        print "Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid
+                        print("Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid)
                     else:
-                        print "Labels file not created !!"
+                        print("Labels file not created !!")
                         
                     # to stop after successful traversal of 2 videos, if stop != 'all'
                     if stop != 'all' and traversed == stop:
                         break
             traversed_tot += traversed
                     
-    print "No. of files written to destination : "+str(traversed_tot)
+    print("No. of files written to destination : "+str(traversed_tot))
     if traversed_tot == 0:
-        print "Check the structure of the dataset folders !!"
+        print("Check the structure of the dataset folders !!")
     
     return traversed_tot
 
@@ -67,7 +77,7 @@ def getShotLabelsForVideo(srcVideo):
     i = 0
     isShot = False
     if not cap.isOpened():
-        print "Could not open the video file !! Abort !!"
+        print("Could not open the video file !! Abort !!")
         return None
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
@@ -78,11 +88,11 @@ def getShotLabelsForVideo(srcVideo):
             cv2.imshow("Prev",frame)
             ret, frame = cap.read()
             if ret:
-                print "Prev : "+str(i)+" ## Next : "+str(i+1)+" ## Shot : " \
-                                   +str(isShot)+"  / "+str(length) 
+                print("Prev : "+str(i)+" ## Next : "+str(i+1)+" ## Shot : " \
+                                   +str(isShot)+"  / "+str(length))
                 cv2.imshow("Next", frame)
             else:
-                print "Next frame is NULL"
+                print("Next frame is NULL")
             direction = waitTillEscPressed()
             if direction == 1:
                 i +=1
@@ -94,13 +104,13 @@ def getShotLabelsForVideo(srcVideo):
                 if not isShot:
                     isShot = True
                 else:
-                    print "Shot already started. Press 'b' to move back and edit."
+                    print("Shot already started. Press 'b' to move back and edit.")
                 #shotLabels.append(isShot)
             elif direction == 3:
                 if isShot:
                     isShot = False
                 else:
-                    print "Shot not started yet. Press 'b' to move back and edit."
+                    print("Shot not started yet. Press 'b' to move back and edit.")
                 
         else:
             break
@@ -152,8 +162,21 @@ def waitTillEscPressed():
 
 
 if __name__=='__main__':
-    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/dataset_25_fps_test_set_1"
-    destFolder = "/home/hadoop/VisionWorkspace/Cricket/group1/create_shot"
-    create_labels(srcVideoFolder, destFolder)
+    #meta_filepath = "/home/arpan/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_meta_info.json"
+    srcVideoFolder = "/home/arpan/VisionWorkspace/Cricket/dataset_25_fps_train_sample"
+    destFolder = "/home/arpan/VisionWorkspace/Cricket/dataset_25_fps_train_sample_labels"
+    
+#    with open(meta_filepath, 'r') as fp:
+#        meta_info = json.load(fp)
+#        
+#    train_meta_info = [k for k in meta_info.items if k[1]['partition']=='training']
+#    tr1 = [t[0] for t in tr]
+#    tr2 = [t[1]['nFrames'] for t in tr]
+#    import pandas as pd
+#    p = pd.DataFrame({'vNames':tr1, 'nFrames':tr2})
+#    p = p.sort_values(by='nFrames')
+#    p = p.reset_index(drop=True)
+
+    create_labels(srcVideoFolder, destFolder, 4)
     
     

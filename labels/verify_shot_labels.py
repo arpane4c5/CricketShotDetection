@@ -31,21 +31,21 @@ def verify_labels(srcFolderPath, srcLabelsFolder, stop='all'):
                 # read segment labels into dictionary
                 with open(label_file, 'r') as fp:
                     shots_dict = json.load(fp)
-                vid_file = os.path.join(srcFolderPath, shots_dict.keys()[0])
+                vid_file = os.path.join(srcFolderPath, list(shots_dict.keys())[0])
                 if os.path.isfile(vid_file):
                     viewShotSegmentsForVideo(vid_file, shots_dict)
                     # save at the destination, if extracted successfully
                     traversed += 1
-                    print "Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid_file
+                    print("Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid_file)
                         
                     # to stop after successful traversal of 2 videos, if stop != 'all'
                     if stop != 'all' and traversed == stop:
                         break
             traversed_tot += traversed
                     
-    print "No. of files written to destination : "+str(traversed_tot)
+    print("No. of files written to destination : "+str(traversed_tot))
     if traversed_tot == 0:
-        print "Check the structure of the dataset folders !!"
+        print("Check the structure of the dataset folders !!")
     return traversed_tot
 
 
@@ -54,12 +54,12 @@ def verify_labels(srcFolderPath, srcLabelsFolder, stop='all'):
 def viewShotSegmentsForVideo(srcVideo, shots_dict):
     
     cap = cv2.VideoCapture(srcVideo)
-    shotLabels = shots_dict[shots_dict.keys()[0]]
+    shotLabels = shots_dict[list(shots_dict.keys())[0]]
     i = 0
-    print "Video : "+srcVideo
-    print "#Shot Segments : "+str(len(shotLabels))
+    print("Video : "+srcVideo)
+    print("#Shot Segments : "+str(len(shotLabels)))
     if not cap.isOpened():
-        print "Could not open the video file !! Abort !!"
+        print("Could not open the video file !! Abort !!")
         return None
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
@@ -71,8 +71,8 @@ def viewShotSegmentsForVideo(srcVideo, shots_dict):
             ret, frame = cap.read()
             if ret:
                 cv2.imshow("Frame", frame)
-                print "Shot : "+ str(shot)+ " ## Count : "+str(shot[1]-shot[0]+1)+ \
-                " ## i : "+ str(i)
+                print("Shot : "+ str(shot)+ " ## Count : "+str(shot[1]-shot[0]+1)+ \
+                " ## i : "+ str(i))
                 direction = waitTillEscPressed()
                 if direction == 1:
                     i +=1
@@ -83,7 +83,7 @@ def viewShotSegmentsForVideo(srcVideo, shots_dict):
                 elif direction == 3:
                     break
             else:
-                print "Next frame is NULL"
+                print("Next frame is NULL")
         if direction==3:    # next video
             break
 
@@ -127,8 +127,12 @@ def waitTillEscPressed():
 
 
 if __name__=='__main__':
-    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/ToBeDeleted"
-    srcLabelsFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_val_set_labels/corrected_shots"
+#    srcVideoFolder = "/home/hadoop/VisionWorkspace/Cricket/ToBeDeleted"
+#    srcLabelsFolder = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/dataset_25_fps_val_set_labels/corrected_shots"
+    srcVideoFolder = "/home/arpan/VisionWorkspace/VideoData/sample_cricket"
+    srcLabelsFolder = "/home/arpan/VisionWorkspace/Cricket/scripts/supporting_files/sample_set_labels/sample_labels_shots"
+    
     verify_labels(srcVideoFolder, srcLabelsFolder)
+    
     
     
